@@ -1,23 +1,27 @@
 const express = require('express');
 const app = express();
-const bodyParser =reqire('body-parser');
-const cors =require('cors');
-const AuthRouter = require('./Routes/AuthRouter');
-
+const cors = require('cors');
 
 require('dotenv').config();
 require('./Models/db');
 
-const PORT = process.env.PORT || 8080;
+const AuthRouter = require('./Routes/AuthRouter');
+const ProductRouter = require('./Routes/ProductRouter');
 
-app.get('/ping',(req, res) => {
+app.use(cors({
+    origin: 'http://localhost:3000'
+}));
+
+app.use(express.json());
+
+app.get('/ping', (req, res) => {
     res.send('PONG');
 });
 
-app.use(bodyParser.json());
-app.use(cors())
-app.use('/auth',AuthRouter);
+app.use('/auth', AuthRouter);
+app.use('/products', ProductRouter);
 
+const PORT = process.env.PORT || 8080;
 
 app.listen(PORT, () => {
     console.log(`Server is running on ${PORT}`);

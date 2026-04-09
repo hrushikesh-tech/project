@@ -1,98 +1,63 @@
-import React, { useState } from 'react'   
-import { Link, useNavigate } from 'react-router-dom'
-import { ToastContainer } from 'react-toastify';
-import { handlerError ,handleSuccess} from '../utils';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 function Login() {
 
     const [loginInfo, setLoginInfo] = useState({
         email: '',
         password: ''
-    })
+    });
 
     const navigate = useNavigate();
-    const handleChange =(e)=>{
-        const {name,value} = e.target;
-        console.log(name,value);
-        const copyLoginInfo ={...loginInfo};
-        copyLoginInfo[name] =value;
-        setLoginInfo(copyLoginInfo);
 
-    }
-   
-      const handleLogin = async (e)=>{   
-        e.preventDefault();   
-        const { email,password} = loginInfo;   
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setLoginInfo({ ...loginInfo, [name]: value });
+    };
 
-       if(!email || !password){ 
-        return alert('email and password are requird')  
-       }
-       try{
-             const url ="http://localhost:8080/auth/login";   
-             const response = await fetch(url,{
+    const handleLogin = async (e) => {
+        e.preventDefault();
+
+        try {
+            const response = await fetch("http://localhost:8080/auth/login", {
                 method: "POST",
-                headers:{
-                    'Content-Type': 'application/json' 
+                headers: {
+                    'Content-Type': 'application/json'
                 },
-                body:JSON.stringify(loginInfo)   
-             });
-             const result =await response.json();
-             const {success,message,jwtToken,name,error}=result; 
-             if(success){
-                handleSuccess(message);
-                localStorage.setItem('token',jwtToken);
-                localStorage.setItem('loggedInUser',name)
-                setTimeout(()=>{
-                    navigate('/home')
-                }, 1000)
-                
-             } else if (error){
-               const details = error.details[0].message;
-                handlerError(details);
-             }else if (!success){ 
-                handlerError(message);
-             }
-             console.log(result);
-       }catch (err) {
-        handlerError(err);
+                body: JSON.stringify(loginInfo)
+            });
 
-       }
-    }
-  return (
-    <div className='container'>
-      <h1>Login</h1>
+            const data = await response.json();
 
-      <form onSubmit={handleLogin}>
-        
-        <div>
-          <label htmlFor='email'>Email</label>
-          <input
-            onChange={handleChange}
-            type='email'
-            name='email'
-            placeholder='Enter your email  ....'
-            value={loginInfo.email}
-          />
+            if (data.success) {
+                localStorage.setItem("token", data.token);
+                localStorage.setItem("loggedInUser", data.name);
+
+                alert("Login successful");
+                navigate('/home');
+            } else {
+                alert(data.message);
+            }
+
+        } catch (err) {
+            alert("Error");
+        }
+    };
+
+    return (
+        <div className='container'>
+            <h1>Login</h1>
+
+            <form onSubmit={handleLogin}>
+                <input name="email" onChange={handleChange} placeholder="Email" />
+                <input type="password" name="password" onChange={handleChange} placeholder="Password" />
+
+                <button>Login</button>
+
+                <span>Don't have account? <Link to="/signup">Signup</Link></span>
+            </form>
         </div>
-        <div>
-          <label htmlFor='password'>Password</label>
-          <input
-            onChange={handleChange}
-            type='password'
-            name='password'
-            placeholder='Enter your password....'
-            value={loginInfo.password}
-          />
-        </div>
-        <button>Signup</button>
-        <span> Don't have an account ?
-            <Link to ="/signup"> Login</Link>
-        </span>
-            
-      </form>
-      <ToastContainer/>
-    </div>
-  )
+    );
 }
 
-export default Login   
+export default Login;

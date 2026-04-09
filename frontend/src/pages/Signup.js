@@ -1,7 +1,5 @@
-import React, { useState } from 'react'   
-import { Link, useNavigate } from 'react-router-dom'
-import { ToastContainer } from 'react-toastify';
-import { handlerError ,handleSuccess} from '../utils';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 function Signup() {
 
@@ -9,101 +7,56 @@ function Signup() {
         name: '',
         email: '',
         password: ''
-    })
+    });
 
     const navigate = useNavigate();
-    const handleChange =(e)=>{
-        const {name,value} = e.target;
-        console.log(name,value);
-        const copySignupInfo ={...SignupInfo};
-        copySignupInfo[name] =value;
-        setSignupInfo(copySignupInfo);
 
-    }
-   
-      const handleSignup = async (e)=>{   
-        e.preventDefault();   
-        const {name, email,password} =SignupInfo;
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setSignupInfo({ ...SignupInfo, [name]: value });
+    };
 
-       if(!name || !email || !password){ 
-        return alert('name,email and password are requird')  
-       }
-       try{
-             const url ="http://localhost:8080/auth/Signup";   
-             const response = await fetch(url,{
+    const handleSignup = async (e) => {
+        e.preventDefault();
+
+        try {
+            const response = await fetch("http://localhost:8080/auth/signup", {
                 method: "POST",
-                headers:{
-                    'Content-Type': 'application/json' 
+                headers: {
+                    'Content-Type': 'application/json'
                 },
-                body:JSON.stringify(SignupInfo)   
-             });
-             const result =await response.json();
-             const {success,message,error}=result; 
-             if(success){
-                handleSuccess(message);
-                setTimeout(()=>{
-                    navigate('/login')
-                }, 1000)
-                
-             } else if (error){
-               const details = error.details[0].message;
-                handlerError(details);
-             }else if (!success){ 
-                handlerError(message);
-             }
-             console.log(result);
-       }catch (err) {
-        handlerError(err);
+                body: JSON.stringify(SignupInfo)
+            });
 
-       }
-    }
-  return (
-    <div className='container'>
-      <h1>Signup</h1>
+            const data = await response.json();
 
-      <form onSubmit={handleSignup}>
-        <div>
-          <label htmlFor='name'>Name</label>
-          <input
-          onChange={handleChange}
-            type='text'
-            name='name'
-            autoFocus
-            placeholder='Enter your name....'
-            value={SignupInfo.name}
-          />
+            if (data.success) {
+                alert("Signup successful");
+                navigate('/login');
+            } else {
+                alert(data.message);
+            }
+
+        } catch (err) {
+            alert("Error");
+        }
+    };
+
+    return (
+        <div className='container'>
+            <h1>Signup</h1>
+
+            <form onSubmit={handleSignup}>
+                <input name="name" onChange={handleChange} placeholder="Name" />
+                <input name="email" onChange={handleChange} placeholder="Email" />
+                <input type="password" name="password" onChange={handleChange} placeholder="Password" />
+
+                <button>Signup</button>
+
+                <span>Already have account? <Link to="/login">Login</Link></span>
+            </form>
         </div>
-        <div>
-          <label htmlFor='email'>Email</label>
-          <input
-            onChange={handleChange}
-            type='email'
-            name='email'
-            
-            placeholder='Enter your email  ....'
-             value={SignupInfo.email}
-          />
-        </div>
-        <div>
-          <label htmlFor='password'>Password</label>
-          <input
-            onChange={handleChange}
-            type='password'
-            name='password'
-            
-            placeholder='Enter your password....'
-             value={SignupInfo.password}
-          />
-        </div>
-        <button>Signup</button>
-        <span>Already have an account ?
-            <Link to ="/login"> Login</Link>
-        </span>
-            
-      </form>
-      <ToastContainer/>
-    </div>
-  )
+    );
 }
 
-export default Signup
+export default Signup;

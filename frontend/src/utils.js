@@ -1,13 +1,9 @@
 import { toast } from 'react-toastify';
 
 export const handleSuccess = (msg) => {
-    toast.success(msg, {
-        position: 'top-right'
-    });
+    toast.success(msg);
 };
 
 export const handlerError = (msg) => {
-    toast.error(msg, {
-        position: 'top-right'
-    });
+    toast.error(msg);
 };
