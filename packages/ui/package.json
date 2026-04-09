@@ -1,0 +1,10 @@
+{
+  "name": "@amdox/ui",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint . --fix",
+    "typecheck": "tsc --noEmit"
+  }
+}

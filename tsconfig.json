@@ -1,0 +1,10 @@
+{
+  "extends": "./packages/config/base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@amdox/*": ["packages/*/src"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "legacy"]
+}

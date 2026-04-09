@@ -1,0 +1,5 @@
+{
+  "language": "ts",
+  "sourceRoot": "src",
+  "compilerOptions": { "builder": "swc" }
+}

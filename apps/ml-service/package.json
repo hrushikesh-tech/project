@@ -1,0 +1,11 @@
+{
+  "name": "@amdox/ml-service",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "uvicorn main:app --reload",
+    "build": "echo \"No build step required\"",
+    "start": "uvicorn main:app",
+    "lint": "ruff check ."
+  }
+}

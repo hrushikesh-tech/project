@@ -1,0 +1,10 @@
+{
+  "name": "@amdox/db",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "prisma generate",
+    "lint": "eslint . --fix",
+    "typecheck": "tsc --noEmit"
+  }
+}
