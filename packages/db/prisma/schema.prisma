@@ -1,0 +1,992 @@
+// =============================================================================
+// Amdox Technologies — AI-Powered Cloud ERP Suite
+// Prisma Schema — Complete Data Model
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// Section 1 — Enums (Stable Values — D-03 Hybrid Strategy)
+// =============================================================================
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  WEBHOOK
+}
+
+enum WidgetType {
+  BAR_CHART
+  LINE_CHART
+  PIE_CHART
+  KPI_CARD
+  TABLE
+  HEATMAP
+  FUNNEL
+}
+
+// =============================================================================
+// Section 2 — Core / System Models
+// =============================================================================
+
+model Tenant {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  domain    String?
+  status    String    @default("ACTIVE")
+  settings  Json?
+  plan      String    @default("STANDARD")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relations
+  users       User[]
+  departments Department[]
+}
+
+model User {
+  id          String    @id @default(cuid())
+  email       String
+  firstName   String
+  lastName    String
+  keycloakId  String    @unique
+  tenantId    String
+  role        String    @default("viewer")
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+  dashboards    Dashboard[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([keycloakId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  timestamp  DateTime @default(now())
+  action     String
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  userId     String
+  tenantId   String
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?
+
+  @@index([tenantId, timestamp])
+  @@index([entityType, entityId])
+  @@index([userId])
+}
+
+// =============================================================================
+// Section 3 — Finance Models
+// =============================================================================
+
+model Account {
+  id        String      @id @default(cuid())
+  code      String
+  name      String
+  type      AccountType
+  parentId  String?
+  isActive  Boolean     @default(true)
+  balance   BigInt      @default(0)
+  currency  String      @default("INR")
+  tenantId  String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  deletedAt DateTime?
+
+  // Self-relation for Chart of Accounts hierarchy
+  parent   Account?  @relation("AccountHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Account[] @relation("AccountHierarchy")
+
+  // Relations
+  journalLines JournalLine[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([parentId])
+}
+
+model FiscalPeriod {
+  id        String    @id @default(cuid())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  isClosed  Boolean   @default(false)
+  closedAt  DateTime?
+  closedBy  String?
+  tenantId  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relations
+  journalEntries JournalEntry[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model JournalEntry {
+  id          String    @id @default(cuid())
+  entryNumber String
+  date        DateTime
+  description String
+  status      String    @default("DRAFT")
+  postedAt    DateTime?
+  postedBy    String?
+  periodId    String
+  tenantId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  period FiscalPeriod  @relation(fields: [periodId], references: [id])
+  lines  JournalLine[]
+
+  @@unique([tenantId, entryNumber])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([periodId])
+}
+
+model JournalLine {
+  id             String    @id @default(cuid())
+  journalEntryId String
+  accountId      String
+  debit          BigInt    @default(0)
+  credit         BigInt    @default(0)
+  description    String?
+  currency       String    @default("INR")
+  fxRate         Decimal   @default(1)
+  tenantId       String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  // Relations
+  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account      Account      @relation(fields: [accountId], references: [id])
+
+  @@index([tenantId])
+  @@index([journalEntryId])
+  @@index([accountId])
+}
+
+model FxRate {
+  id             String    @id @default(cuid())
+  baseCurrency   String
+  targetCurrency String
+  rate           Decimal
+  effectiveDate  DateTime
+  source         String    @default("openexchangerates")
+  tenantId       String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  @@unique([tenantId, baseCurrency, targetCurrency, effectiveDate])
+  @@index([tenantId])
+}
+
+// =============================================================================
+// Section 4 — Accounts Payable / Accounts Receivable
+// =============================================================================
+
+model Invoice {
+  id            String    @id @default(cuid())
+  invoiceNumber String
+  vendorId      String?
+  customerId    String?
+  type          String    @default("PAYABLE")
+  status        String    @default("DRAFT")
+  totalAmount   BigInt
+  taxAmount     BigInt    @default(0)
+  currency      String    @default("INR")
+  dueDate       DateTime
+  paidAt        DateTime?
+  ocrData       Json?
+  tenantId      String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  // Relations
+  vendor        Vendor?        @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  lines         InvoiceLine[]
+  threeWayMatch ThreeWayMatch?
+
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([vendorId])
+}
+
+model InvoiceLine {
+  id          String    @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Decimal
+  unitPrice   BigInt
+  amount      BigInt
+  taxRate     Decimal   @default(0)
+  tenantId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([invoiceId])
+}
+
+model ThreeWayMatch {
+  id                 String    @id @default(cuid())
+  invoiceId          String    @unique
+  purchaseOrderId    String
+  goodsReceiptId     String
+  matchStatus        String    @default("PENDING")
+  amountMatch        Boolean   @default(false)
+  lineItemSimilarity Decimal?
+  tenantId           String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  // Relations
+  invoice       Invoice       @relation(fields: [invoiceId], references: [id])
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  goodsReceipt  GoodsReceipt  @relation(fields: [goodsReceiptId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, matchStatus])
+  @@index([purchaseOrderId])
+  @@index([goodsReceiptId])
+}
+
+// =============================================================================
+// Section 5 — HR Models
+// =============================================================================
+
+model Employee {
+  id              String    @id @default(cuid())
+  employeeCode    String
+  userId          String?
+  firstName       String
+  lastName        String
+  email           String
+  phone           String?
+  dateOfBirth     DateTime?
+  hireDate        DateTime
+  terminationDate DateTime?
+  status          String    @default("ACTIVE")
+  departmentId    String
+  designationId   String?
+  managerId       String?
+  tenantId        String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  // Self-relation for reporting hierarchy
+  manager Employee?  @relation("EmployeeHierarchy", fields: [managerId], references: [id], onDelete: SetNull)
+  reports Employee[] @relation("EmployeeHierarchy")
+
+  // Relations
+  department    Department     @relation(fields: [departmentId], references: [id])
+  leaveRequests LeaveRequest[]
+  leaveBalances LeaveBalance[]
+  attendances   Attendance[]
+  payslips      Payslip[]
+  tasks         Task[]
+
+  @@unique([tenantId, employeeCode])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([departmentId])
+  @@index([managerId])
+}
+
+model Department {
+  id        String    @id @default(cuid())
+  name      String
+  code      String
+  parentId  String?
+  headId    String?
+  tenantId  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Self-relation for department hierarchy
+  parent   Department?  @relation("DepartmentHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Department[] @relation("DepartmentHierarchy")
+
+  // Relations
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employees Employee[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([parentId])
+}
+
+model LeaveType {
+  id                String    @id @default(cuid())
+  name              String
+  code              String
+  accrualRate       Decimal
+  maxBalance        Decimal
+  carryForwardLimit Decimal   @default(0)
+  tenantId          String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  // Relations
+  leaveRequests LeaveRequest[]
+  leaveBalances LeaveBalance[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model LeaveRequest {
+  id          String    @id @default(cuid())
+  employeeId  String
+  leaveTypeId String
+  startDate   DateTime
+  endDate     DateTime
+  status      String    @default("DRAFT")
+  reason      String?
+  approvedBy  String?
+  tenantId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([employeeId])
+  @@index([leaveTypeId])
+}
+
+model LeaveBalance {
+  id          String    @id @default(cuid())
+  employeeId  String
+  leaveTypeId String
+  balance     Decimal
+  year        Int
+  tenantId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  @@unique([tenantId, employeeId, leaveTypeId, year])
+  @@index([tenantId])
+}
+
+model Attendance {
+  id            String    @id @default(cuid())
+  employeeId    String
+  date          DateTime
+  clockIn       DateTime?
+  clockOut      DateTime?
+  hoursWorked   Decimal?
+  overtimeHours Decimal   @default(0)
+  status        String    @default("PRESENT")
+  tenantId      String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  // Relations
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, employeeId, date])
+  @@index([tenantId])
+  @@index([employeeId])
+}
+
+// =============================================================================
+// Section 6 — Payroll Models
+// =============================================================================
+
+model PayrollRun {
+  id              String    @id @default(cuid())
+  period          String
+  status          String    @default("DRAFT")
+  totalGross      BigInt    @default(0)
+  totalDeductions BigInt    @default(0)
+  totalNet        BigInt    @default(0)
+  processedCount  Int       @default(0)
+  totalCount      Int       @default(0)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  tenantId        String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  // Relations
+  payslips Payslip[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+model Payslip {
+  id           String    @id @default(cuid())
+  payrollRunId String
+  employeeId   String
+  grossPay     BigInt
+  deductions   Json
+  netPay       BigInt
+  taxBreakdown Json
+  pdfUrl       String?
+  tenantId     String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  // Relations
+  payrollRun PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employee   Employee   @relation(fields: [employeeId], references: [id])
+
+  @@index([tenantId])
+  @@index([payrollRunId])
+  @@index([employeeId])
+}
+
+model TaxSlab {
+  id            String    @id @default(cuid())
+  jurisdiction  String    @default("IN")
+  regime        String
+  minIncome     BigInt
+  maxIncome     BigInt?
+  rate          Decimal
+  rebateLimit   BigInt?
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  tenantId      String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  @@index([tenantId])
+  @@index([jurisdiction, regime])
+}
+
+// =============================================================================
+// Section 7 — Supply Chain Models
+// =============================================================================
+
+model Vendor {
+  id           String    @id @default(cuid())
+  name         String
+  code         String
+  email        String?
+  phone        String?
+  address      String?
+  paymentTerms Int       @default(30)
+  currency     String    @default("INR")
+  status       String    @default("ACTIVE")
+  tenantId     String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  // Relations
+  purchaseOrders PurchaseOrder[]
+  invoices       Invoice[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+model PurchaseOrder {
+  id               String    @id @default(cuid())
+  poNumber         String
+  vendorId         String
+  status           String    @default("DRAFT")
+  totalAmount      BigInt    @default(0)
+  currency         String    @default("INR")
+  expectedDelivery DateTime?
+  approvedBy       String?
+  tenantId         String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  // Relations
+  vendor        Vendor              @relation(fields: [vendorId], references: [id])
+  lines         PurchaseOrderLine[]
+  goodsReceipts GoodsReceipt[]
+  threeWayMatch ThreeWayMatch[]
+
+  @@unique([tenantId, poNumber])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([vendorId])
+}
+
+model PurchaseOrderLine {
+  id               String    @id @default(cuid())
+  purchaseOrderId  String
+  productId        String
+  description      String
+  quantity         Decimal
+  unitPrice        BigInt
+  receivedQuantity Decimal   @default(0)
+  tenantId         String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  // Relations
+  purchaseOrder     PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product           Product            @relation(fields: [productId], references: [id])
+  goodsReceiptLines GoodsReceiptLine[]
+
+  @@index([tenantId])
+  @@index([purchaseOrderId])
+  @@index([productId])
+}
+
+model Product {
+  id            String    @id @default(cuid())
+  sku           String
+  name          String
+  description   String?
+  category      String?
+  unitOfMeasure String    @default("PCS")
+  reorderPoint  Decimal   @default(0)
+  tenantId      String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  // Relations
+  purchaseOrderLines  PurchaseOrderLine[]
+  inventoryItems      InventoryItem[]
+  costLayers          CostLayer[]
+  forecastPredictions ForecastPrediction[]
+  forecastModels      ForecastModel[]
+
+  @@unique([tenantId, sku])
+  @@index([tenantId])
+}
+
+model InventoryItem {
+  id               String    @id @default(cuid())
+  productId        String
+  warehouseId      String
+  quantity         Decimal   @default(0)
+  reservedQuantity Decimal   @default(0)
+  tenantId         String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  // Relations
+  product   Product   @relation(fields: [productId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+
+  @@unique([tenantId, productId, warehouseId])
+  @@index([tenantId])
+  @@index([productId])
+  @@index([warehouseId])
+}
+
+model Warehouse {
+  id        String    @id @default(cuid())
+  name      String
+  code      String
+  address   String?
+  tenantId  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relations
+  inventoryItems InventoryItem[]
+  costLayers     CostLayer[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model CostLayer {
+  id                String    @id @default(cuid())
+  productId         String
+  warehouseId       String
+  quantity          Decimal
+  unitCost          BigInt
+  remainingQuantity Decimal
+  receivedAt        DateTime  @default(now())
+  tenantId          String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  // Relations
+  product   Product   @relation(fields: [productId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+
+  @@index([tenantId])
+  @@index([productId])
+  @@index([warehouseId])
+}
+
+model GoodsReceipt {
+  id              String    @id @default(cuid())
+  purchaseOrderId String
+  receivedDate    DateTime  @default(now())
+  receivedBy      String
+  tenantId        String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  // Relations
+  purchaseOrder PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id])
+  lines         GoodsReceiptLine[]
+  threeWayMatch ThreeWayMatch[]
+
+  @@index([tenantId])
+  @@index([purchaseOrderId])
+}
+
+model GoodsReceiptLine {
+  id                  String    @id @default(cuid())
+  goodsReceiptId      String
+  purchaseOrderLineId String
+  quantityReceived    Decimal
+  tenantId            String
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  // Relations
+  goodsReceipt      GoodsReceipt      @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  purchaseOrderLine PurchaseOrderLine @relation(fields: [purchaseOrderLineId], references: [id])
+
+  @@index([tenantId])
+  @@index([goodsReceiptId])
+  @@index([purchaseOrderLineId])
+}
+
+// =============================================================================
+// Section 8 — Project Management Models
+// =============================================================================
+
+model Project {
+  id          String    @id @default(cuid())
+  code        String
+  name        String
+  description String?
+  managerId   String
+  budget      BigInt    @default(0)
+  actualCost  BigInt    @default(0)
+  status      String    @default("PLANNING")
+  startDate   DateTime?
+  endDate     DateTime?
+  tenantId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  tasks      Task[]
+  milestones ProjectMilestone[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+model Task {
+  id             String    @id @default(cuid())
+  projectId      String
+  name           String
+  description    String?
+  assigneeId     String?
+  status         String    @default("TODO")
+  priority       String    @default("MEDIUM")
+  estimatedHours Decimal?
+  actualHours    Decimal   @default(0)
+  startDate      DateTime?
+  dueDate        DateTime?
+  completedAt    DateTime?
+  tenantId       String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  // Relations
+  project      Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee     Employee?        @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  dependencies TaskDependency[] @relation("DependentTask")
+  dependents   TaskDependency[] @relation("DependsOnTask")
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([projectId])
+  @@index([assigneeId])
+}
+
+model TaskDependency {
+  id              String    @id @default(cuid())
+  taskId          String
+  dependsOnTaskId String
+  type            String    @default("FINISH_TO_START")
+  tenantId        String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  // Relations
+  task      Task @relation("DependentTask", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOn Task @relation("DependsOnTask", fields: [dependsOnTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, dependsOnTaskId])
+  @@index([tenantId])
+}
+
+model ProjectMilestone {
+  id          String    @id @default(cuid())
+  projectId   String
+  name        String
+  dueDate     DateTime
+  status      String    @default("PENDING")
+  completedAt DateTime?
+  tenantId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([projectId])
+}
+
+// =============================================================================
+// Section 9 — ML / Forecast Models
+// =============================================================================
+
+model ForecastPrediction {
+  id              String    @id @default(cuid())
+  forecastDate    DateTime
+  productId       String
+  warehouseId     String?
+  predictedDemand Decimal
+  confidenceLower Decimal?
+  confidenceUpper Decimal?
+  modelType       String
+  modelVersion    String?
+  mape            Decimal?
+  tenantId        String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, forecastDate])
+  @@index([productId])
+}
+
+model ForecastModel {
+  id              String    @id @default(cuid())
+  productId       String
+  modelType       String
+  version         String
+  mape            Decimal
+  trainedAt       DateTime
+  isActive        Boolean   @default(false)
+  hyperparameters Json?
+  tenantId        String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([tenantId])
+  @@index([productId])
+}
+
+// =============================================================================
+// Section 10 — BI / Dashboard Models
+// =============================================================================
+
+model Dashboard {
+  id        String    @id @default(cuid())
+  title     String
+  ownerId   String
+  isPublic  Boolean   @default(false)
+  layout    Json?
+  tenantId  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relations
+  owner   User     @relation(fields: [ownerId], references: [id])
+  widgets Widget[]
+
+  @@index([tenantId])
+  @@index([ownerId])
+}
+
+model Widget {
+  id          String     @id @default(cuid())
+  dashboardId String
+  type        WidgetType
+  title       String
+  metricKey   String
+  config      Json?
+  position    Json
+  tenantId    String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([dashboardId])
+}
+
+// =============================================================================
+// Section 11 — Notification Models
+// =============================================================================
+
+model Notification {
+  id        String              @id @default(cuid())
+  userId    String
+  type      String
+  channel   NotificationChannel
+  title     String
+  body      String?
+  isRead    Boolean             @default(false)
+  readAt    DateTime?
+  metadata  Json?
+  tenantId  String
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  deletedAt DateTime?
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([userId, isRead])
+}
+
+model OutboxEvent {
+  id          String    @id @default(cuid())
+  eventType   String
+  payload     Json
+  status      String    @default("PENDING")
+  processedAt DateTime?
+  retryCount  Int       @default(0)
+  tenantId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@index([status, createdAt])
+  @@index([tenantId])
+}
+
+model NotificationPreference {
+  id        String              @id @default(cuid())
+  userId    String
+  eventType String
+  channel   NotificationChannel
+  enabled   Boolean             @default(true)
+  tenantId  String
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  deletedAt DateTime?
+
+  @@unique([tenantId, userId, eventType, channel])
+  @@index([tenantId])
+}
+
+model WebhookConfig {
+  id        String    @id @default(cuid())
+  url       String
+  secret    String
+  events    String[]
+  isActive  Boolean   @default(true)
+  tenantId  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([tenantId])
+}
+
+model NotificationTemplate {
+  id        String              @id @default(cuid())
+  eventType String
+  channel   NotificationChannel
+  subject   String?
+  body      String
+  tenantId  String
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  deletedAt DateTime?
+
+  @@unique([tenantId, eventType, channel])
+  @@index([tenantId])
+}

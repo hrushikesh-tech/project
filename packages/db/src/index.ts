@@ -1,0 +1,55 @@
+// @amdox/db — Database package barrel export
+// Re-export Prisma client and generated types
+export { PrismaClient, Prisma } from '@prisma/client';
+export type {
+  Tenant,
+  User,
+  AuditLog,
+  Account,
+  FiscalPeriod,
+  JournalEntry,
+  JournalLine,
+  FxRate,
+  Invoice,
+  InvoiceLine,
+  ThreeWayMatch,
+  Employee,
+  Department,
+  LeaveType,
+  LeaveRequest,
+  LeaveBalance,
+  Attendance,
+  PayrollRun,
+  Payslip,
+  TaxSlab,
+  Vendor,
+  PurchaseOrder,
+  PurchaseOrderLine,
+  Product,
+  InventoryItem,
+  Warehouse,
+  CostLayer,
+  GoodsReceipt,
+  GoodsReceiptLine,
+  Project,
+  Task,
+  TaskDependency,
+  ProjectMilestone,
+  ForecastPrediction,
+  ForecastModel,
+  Dashboard,
+  Widget,
+  Notification,
+  OutboxEvent,
+  NotificationPreference,
+  WebhookConfig,
+  NotificationTemplate,
+  AccountType,
+  NotificationChannel,
+  WidgetType,
+} from '@prisma/client';
+
+// Re-export client factory and extensions
+export { createPrismaClient, createTenantClient } from './client';
+export { createTenantExtension } from './extensions/tenant.extension';
+export { softDeleteExtension } from './extensions/soft-delete.extension';
