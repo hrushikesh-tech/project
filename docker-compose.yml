@@ -7,6 +7,9 @@ services:
       POSTGRES_DB: amdox_erp
     ports:
       - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/db/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U root -d amdox_erp"]
       interval: 10s
@@ -25,16 +28,18 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:25.0
-    command: start-dev
+    command: start-dev --import-realm
     environment:
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://timescaledb:5432/amdox_erp
+      KC_DB_URL: jdbc:postgresql://timescaledb:5432/keycloak_db
       KC_DB_USERNAME: root
       KC_DB_PASSWORD: rootpassword
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: adminpassword
     ports:
       - "8080:8080"
+    volumes:
+      - ./infra/keycloak/amdox-realm.json:/opt/keycloak/data/import/amdox-realm.json:ro
     depends_on:
       timescaledb:
         condition: service_healthy
@@ -67,3 +72,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+volumes:
+  pgdata:
