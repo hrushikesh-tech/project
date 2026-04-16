@@ -24,6 +24,12 @@ enum AccountType {
   EXPENSE
 }
 
+enum JournalEntryStatus {
+  DRAFT
+  POSTED
+  REVERSED
+}
+
 enum NotificationChannel {
   IN_APP
   EMAIL
@@ -60,6 +66,12 @@ model Tenant {
   // Relations
   users       User[]
   departments Department[]
+  legalEntities LegalEntity[]
+  accounts      Account[]
+  fiscalPeriods FiscalPeriod[]
+  journalEntries JournalEntry[]
+  journalLines   JournalLine[]
+  intercompanyTransfers IntercompanyTransfer[]
 }
 
 model User {
@@ -109,14 +121,41 @@ model AuditLog {
 // Section 3 — Finance Models
 // =============================================================================
 
+model LegalEntity {
+  id           String    @id @default(cuid())
+  code         String
+  name         String
+  baseCurrency String    @default("INR")
+  isActive     Boolean   @default(true)
+  tenantId     String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  tenant              Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  accounts            Account[]
+  fiscalPeriods       FiscalPeriod[]
+  journalEntries      JournalEntry[]
+  vendors             Vendor[]
+  customers           Customer[]
+  invoices            Invoice[]
+  purchaseOrders      PurchaseOrder[]
+  goodsReceipts       GoodsReceipt[]
+  outgoingTransfers   IntercompanyTransfer[] @relation("IntercompanyFromEntity")
+  incomingTransfers   IntercompanyTransfer[] @relation("IntercompanyToEntity")
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
 model Account {
   id        String      @id @default(cuid())
   code      String
   name      String
   type      AccountType
   parentId  String?
+  legalEntityId String
   isActive  Boolean     @default(true)
-  balance   BigInt      @default(0)
   currency  String      @default("INR")
   tenantId  String
   createdAt DateTime    @default(now())
@@ -128,10 +167,15 @@ model Account {
   children Account[] @relation("AccountHierarchy")
 
   // Relations
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  legalEntity  LegalEntity   @relation(fields: [legalEntityId], references: [id], onDelete: Cascade)
   journalLines JournalLine[]
+  vendorPayablesConfigurations Vendor[]   @relation("VendorPayablesAccount")
+  customerReceivablesConfigurations Customer[] @relation("CustomerReceivablesAccount")
 
-  @@unique([tenantId, code])
+  @@unique([tenantId, legalEntityId, code])
   @@index([tenantId])
+  @@index([legalEntityId])
   @@index([parentId])
 }
 
@@ -143,16 +187,20 @@ model FiscalPeriod {
   isClosed  Boolean   @default(false)
   closedAt  DateTime?
   closedBy  String?
+  legalEntityId String
   tenantId  String
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   // Relations
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  legalEntity LegalEntity   @relation(fields: [legalEntityId], references: [id], onDelete: Cascade)
   journalEntries JournalEntry[]
 
-  @@unique([tenantId, name])
+  @@unique([tenantId, legalEntityId, name])
   @@index([tenantId])
+  @@index([legalEntityId])
 }
 
 model JournalEntry {
@@ -160,23 +208,35 @@ model JournalEntry {
   entryNumber String
   date        DateTime
   description String
-  status      String    @default("DRAFT")
+  status      JournalEntryStatus @default(DRAFT)
   postedAt    DateTime?
   postedBy    String?
   periodId    String
+  legalEntityId String
+  originalEntryId String? @unique
   tenantId    String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
   // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   period FiscalPeriod  @relation(fields: [periodId], references: [id])
+  legalEntity LegalEntity @relation(fields: [legalEntityId], references: [id], onDelete: Cascade)
+  originalEntry JournalEntry? @relation("JournalEntryReversal", fields: [originalEntryId], references: [id], onDelete: SetNull)
+  reversalEntry JournalEntry? @relation("JournalEntryReversal")
+  sourceTransfer IntercompanyTransfer? @relation("IntercompanySourceEntry")
+  destinationTransfer IntercompanyTransfer? @relation("IntercompanyDestinationEntry")
+  postedInvoice Invoice? @relation("InvoicePostedJournalEntry")
   lines  JournalLine[]
 
-  @@unique([tenantId, entryNumber])
+  @@unique([tenantId, legalEntityId, entryNumber])
   @@index([tenantId])
   @@index([tenantId, status])
+  @@index([tenantId, legalEntityId, status])
   @@index([periodId])
+  @@index([legalEntityId])
+  @@index([originalEntryId])
 }
 
 model JournalLine {
@@ -185,6 +245,8 @@ model JournalLine {
   accountId      String
   debit          BigInt    @default(0)
   credit         BigInt    @default(0)
+  transactionDebit  BigInt @default(0)
+  transactionCredit BigInt @default(0)
   description    String?
   currency       String    @default("INR")
   fxRate         Decimal   @default(1)
@@ -194,12 +256,41 @@ model JournalLine {
   deletedAt      DateTime?
 
   // Relations
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
   account      Account      @relation(fields: [accountId], references: [id])
 
   @@index([tenantId])
   @@index([journalEntryId])
   @@index([accountId])
+}
+
+model IntercompanyTransfer {
+  id                     String    @id @default(cuid())
+  transferNumber         String
+  description            String?
+  transactionDate        DateTime
+  currency               String
+  sourceLegalEntityId    String
+  destinationLegalEntityId String
+  sourceEntryId          String    @unique
+  destinationEntryId     String    @unique
+  totalAmount            BigInt
+  tenantId               String
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  deletedAt              DateTime?
+
+  tenant                 Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sourceLegalEntity      LegalEntity  @relation("IntercompanyFromEntity", fields: [sourceLegalEntityId], references: [id], onDelete: Cascade)
+  destinationLegalEntity LegalEntity  @relation("IntercompanyToEntity", fields: [destinationLegalEntityId], references: [id], onDelete: Cascade)
+  sourceEntry            JournalEntry @relation("IntercompanySourceEntry", fields: [sourceEntryId], references: [id], onDelete: Cascade)
+  destinationEntry       JournalEntry @relation("IntercompanyDestinationEntry", fields: [destinationEntryId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, transferNumber])
+  @@index([tenantId])
+  @@index([sourceLegalEntityId])
+  @@index([destinationLegalEntityId])
 }
 
 model FxRate {
@@ -225,15 +316,26 @@ model FxRate {
 model Invoice {
   id            String    @id @default(cuid())
   invoiceNumber String
+  legalEntityId String
   vendorId      String?
   customerId    String?
+  purchaseOrderId String?
   type          String    @default("PAYABLE")
-  status        String    @default("DRAFT")
+  status        String    @default("OCR_PENDING")
+  issueDate     DateTime
   totalAmount   BigInt
   taxAmount     BigInt    @default(0)
   currency      String    @default("INR")
   dueDate       DateTime
+  poNumber      String?
   paidAt        DateTime?
+  sourceDocumentKey String
+  sourceDocumentMimeType String
+  ocrStatus     String    @default("QUEUED")
+  ocrProvider   String?
+  reviewReason  String?
+  counterpartyName String
+  postedJournalEntryId String? @unique
   ocrData       Json?
   tenantId      String
   createdAt     DateTime  @default(now())
@@ -241,14 +343,22 @@ model Invoice {
   deletedAt     DateTime?
 
   // Relations
+  legalEntity   LegalEntity    @relation(fields: [legalEntityId], references: [id], onDelete: Cascade)
   vendor        Vendor?        @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  customer      Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  postedJournalEntry JournalEntry? @relation("InvoicePostedJournalEntry", fields: [postedJournalEntryId], references: [id], onDelete: SetNull)
   lines         InvoiceLine[]
   threeWayMatch ThreeWayMatch?
 
   @@unique([tenantId, invoiceNumber])
   @@index([tenantId])
-  @@index([tenantId, status])
+  @@index([tenantId, type, status])
+  @@index([legalEntityId])
   @@index([vendorId])
+  @@index([customerId])
+  @@index([purchaseOrderId])
+  @@index([postedJournalEntryId])
 }
 
 model InvoiceLine {
@@ -278,7 +388,13 @@ model ThreeWayMatch {
   goodsReceiptId     String
   matchStatus        String    @default("PENDING")
   amountMatch        Boolean   @default(false)
+  quantityMatch      Boolean   @default(false)
   lineItemSimilarity Decimal?
+  variancePercent    Decimal?
+  mismatchReasons    Json?
+  matchedAt          DateTime?
+  reviewedAt         DateTime?
+  reviewedBy         String?
   tenantId           String
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -520,6 +636,35 @@ model TaxSlab {
 // Section 7 — Supply Chain Models
 // =============================================================================
 
+model Customer {
+  id                   String    @id @default(cuid())
+  name                 String
+  code                 String
+  email                String?
+  phone                String?
+  address              String?
+  paymentTerms         Int       @default(30)
+  currency             String    @default("INR")
+  status               String    @default("ACTIVE")
+  legalEntityId        String
+  receivablesAccountId String?
+  tenantId             String
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  deletedAt            DateTime?
+
+  // Relations
+  legalEntity         LegalEntity @relation(fields: [legalEntityId], references: [id], onDelete: Cascade)
+  receivablesAccount  Account?    @relation("CustomerReceivablesAccount", fields: [receivablesAccountId], references: [id], onDelete: SetNull)
+  invoices            Invoice[]
+
+  @@unique([tenantId, legalEntityId, code])
+  @@index([tenantId])
+  @@index([legalEntityId])
+  @@index([receivablesAccountId])
+  @@index([tenantId, status])
+}
+
 model Vendor {
   id           String    @id @default(cuid())
   name         String
@@ -530,17 +675,23 @@ model Vendor {
   paymentTerms Int       @default(30)
   currency     String    @default("INR")
   status       String    @default("ACTIVE")
+  legalEntityId String
+  payablesAccountId String?
   tenantId     String
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
   // Relations
+  legalEntity     LegalEntity      @relation(fields: [legalEntityId], references: [id], onDelete: Cascade)
+  payablesAccount Account?         @relation("VendorPayablesAccount", fields: [payablesAccountId], references: [id], onDelete: SetNull)
   purchaseOrders PurchaseOrder[]
   invoices       Invoice[]
 
-  @@unique([tenantId, code])
+  @@unique([tenantId, legalEntityId, code])
   @@index([tenantId])
+  @@index([legalEntityId])
+  @@index([payablesAccountId])
   @@index([tenantId, status])
 }
 
@@ -548,6 +699,7 @@ model PurchaseOrder {
   id               String    @id @default(cuid())
   poNumber         String
   vendorId         String
+  legalEntityId    String
   status           String    @default("DRAFT")
   totalAmount      BigInt    @default(0)
   currency         String    @default("INR")
@@ -560,14 +712,17 @@ model PurchaseOrder {
 
   // Relations
   vendor        Vendor              @relation(fields: [vendorId], references: [id])
+  legalEntity   LegalEntity         @relation(fields: [legalEntityId], references: [id], onDelete: Cascade)
   lines         PurchaseOrderLine[]
   goodsReceipts GoodsReceipt[]
   threeWayMatch ThreeWayMatch[]
+  invoices      Invoice[]
 
   @@unique([tenantId, poNumber])
   @@index([tenantId])
   @@index([tenantId, status])
   @@index([vendorId])
+  @@index([legalEntityId])
 }
 
 model PurchaseOrderLine {
@@ -681,6 +836,7 @@ model CostLayer {
 model GoodsReceipt {
   id              String    @id @default(cuid())
   purchaseOrderId String
+  legalEntityId   String
   receivedDate    DateTime  @default(now())
   receivedBy      String
   tenantId        String
@@ -690,11 +846,13 @@ model GoodsReceipt {
 
   // Relations
   purchaseOrder PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id])
+  legalEntity   LegalEntity        @relation(fields: [legalEntityId], references: [id], onDelete: Cascade)
   lines         GoodsReceiptLine[]
   threeWayMatch ThreeWayMatch[]
 
   @@index([tenantId])
   @@index([purchaseOrderId])
+  @@index([legalEntityId])
 }
 
 model GoodsReceiptLine {

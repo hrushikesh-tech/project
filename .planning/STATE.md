@@ -1,27 +1,41 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: executing
+last_updated: "2026-04-15T17:48:00.000Z"
+progress:
+  total_phases: 18
+  completed_phases: 1
+  total_plans: 7
+  completed_plans: 2
+  percent: 29
+---
+
 # State: Amdox AI-Powered Cloud ERP Suite
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-09)
+See: `.planning/PROJECT.md`
 
 **Core value:** Every financial transaction is accurately recorded, balanced, and auditable
-**Current focus:** Phase 1 — Environment Setup & Monorepo Scaffold
+**Current focus:** Phase 4 - AP/AR Automation
 
 ## Current Phase
 
-**Phase:** 1
-**Name:** Environment Setup & Monorepo Scaffold
-**Status:** Not Started
-**Requirements:** ENV-01, ENV-02, ENV-03, ENV-04
+**Phase:** 4
+**Name:** AP/AR Automation
+**Status:** Completed
+**Requirements:** APAR-01, APAR-02, APAR-03, APAR-04, APAR-05, APAR-06
 
 ## Progress
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 1 | Environment Setup & Monorepo Scaffold | Not Started |
-| 2 | Database Schema & Authentication | Not Started |
-| 3 | General Ledger (Finance Core) | Not Started |
-| 4 | AP/AR Automation | Not Started |
+| 1 | Environment Setup & Monorepo Scaffold | Completed |
+| 2 | Database Schema & Authentication | Completed |
+| 3 | General Ledger (Finance Core) | Completed |
+| 4 | AP/AR Automation | Completed |
 | 5 | HR Core | Not Started |
 | 6 | Payroll Engine | Not Started |
 | 7 | Supply Chain & Inventory | Not Started |
@@ -39,11 +53,13 @@ See: .planning/PROJECT.md (updated 2026-04-09)
 
 ## Decisions Log
 
-(None yet — populated during phase transitions)
+- 2026-04-14: Phase 3 completed as a backend-only finance slice with tenant-scoped legal entities, journal lifecycle controls, FX caching, reporting, and intercompany transfers.
+- 2026-04-14: Tenant wildcard access was removed from Phase 3 runtime paths; finance endpoints now require an explicit tenant-scoped request context.
+- 2026-04-15: Phase 4 backend automation completed with secure invoice upload, OCR orchestration, AP three-way matching, AP-only auto-posting, mismatch notifications, and unified AP/AR aging reports.
 
 ## Blockers
 
-(None)
+- Live OpenExchangeRates provider verification still requires a valid `OPENEXCHANGE_APP_ID` in the runtime environment.
 
 ---
-*State initialized: 2026-04-09*
+*State updated: 2026-04-15*

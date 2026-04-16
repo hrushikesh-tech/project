@@ -5,11 +5,11 @@ import { Public } from '../common/decorators/roles.decorator';
 export class HealthController {
   @Public()
   @Get()
-  check() {
+  getHealth() {
     return {
       status: 'ok',
       timestamp: new Date().toISOString(),
-      service: 'amdox-api',
+      uptime: process.uptime(),
     };
   }
 }

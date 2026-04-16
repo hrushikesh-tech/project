@@ -7,7 +7,7 @@
 
 ## Phases
 
-### Phase 1: Environment Setup & Monorepo Scaffold
+### Phase 1: Environment Setup & Monorepo Scaffold [COMPLETED]
 **Goal:** Establish the Turborepo monorepo, code quality toolchain, and Docker Compose development stack so all subsequent phases have a consistent foundation.
 **Requirements:** ENV-01, ENV-02, ENV-03, ENV-04
 **Depends on:** (none)
@@ -21,7 +21,7 @@
 
 ---
 
-### Phase 2: Database Schema & Authentication
+### Phase 2: Database Schema & Authentication [COMPLETED]
 **Goal:** Define the complete Prisma schema with 40+ models, tenant middleware, and a fully working Keycloak-based auth flow in NestJS with RBAC, MFA, and audit logging.
 **Requirements:** DB-01, DB-02, DB-03, DB-04, DB-05, AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05, AUTH-06, AUTH-07, AUTH-08, AUTH-09, AUTH-10
 **Depends on:** Phase 1
@@ -36,7 +36,7 @@
 
 ---
 
-### Phase 3: General Ledger (Finance Core)
+### Phase 3: General Ledger (Finance Core) [COMPLETED]
 **Goal:** Implement double-entry General Ledger with chart of accounts, journal entries, period close, multi-currency FX, and financial statements.
 **Requirements:** FIN-01, FIN-02, FIN-03, FIN-04, FIN-05, FIN-06, FIN-07, FIN-08
 **Depends on:** Phase 2
@@ -51,7 +51,7 @@
 
 ---
 
-### Phase 4: AP/AR Automation
+### Phase 4: AP/AR Automation [COMPLETED]
 **Goal:** Build invoice OCR pipeline, 3-way matching engine, and aging reports for accounts payable and receivable.
 **Requirements:** APAR-01, APAR-02, APAR-03, APAR-04, APAR-05, APAR-06
 **Depends on:** Phase 3

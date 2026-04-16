@@ -18,8 +18,8 @@ async function bootstrap() {
     credentials: true,
   });
 
-  const port = process.env.API_PORT || 3001;
-  await app.listen(port);
+  const port = Number(process.env.PORT_API ?? process.env.API_PORT ?? 3001);
+  await app.listen(port, '0.0.0.0');
   console.log(`API is running on: http://localhost:${port}`);
 }
 bootstrap();

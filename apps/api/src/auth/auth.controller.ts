@@ -2,7 +2,7 @@ import { Controller, Post, Body, Get, UseGuards, Headers } from '@nestjs/common'
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { RequestUser } from '../common/interfaces/request-user.interface';
+import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { Public } from '../common/decorators/roles.decorator';
 
 @Controller('api/v1/auth')

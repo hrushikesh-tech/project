@@ -9,8 +9,14 @@ frontend/node_modules/
 # Environment files
 # --------------------
 .env
-backend/.env
-frontend/.env
+.env.*
+!.env.example
+*.local
+*.key
+*.pem
+**/.env
+**/.env.*
+!**/.env.example
 
 # --------------------
 # Logs
@@ -27,6 +33,8 @@ yarn-error.log*
 build/
 dist/
 frontend/build/
+.next/
+.turbo/
 
 # --------------------
 # OS files
@@ -45,3 +53,7 @@ Thumbs.db
 # --------------------
 *.tmp
 *.cache
+__pycache__/
+*.pyc
+.pytest_cache/
+apps/api/scratch/

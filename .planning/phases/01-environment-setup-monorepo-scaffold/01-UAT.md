@@ -8,10 +8,10 @@ updated: 2026-04-10T00:54:30Z
 
 ## Current Test
 
-number: 4
-name: Code Quality Enforcement
+number: 5
+name: Environment Documentation
 expected: |
-Attempt to commit a file with a formatting error. Husky/lint-staged should intercept and prevent the commit or fix the error automatically.
+  Review `.env.example`. It should contain all necessary variables for the backend infrastructure (Timescale, Redis, Keycloak, etc.) without hardcoded secrets.
 awaiting: user response
 
 ## Tests
@@ -38,8 +38,8 @@ result: pass
 ### 4. Code Quality Enforcement
 
 expected: |
-Attempt to commit a file with a formatting error. Husky/lint-staged should intercept and prevent the commit or fix the error automatically.
-result: pending
+  Commit quality hook (ESLint + Husky + Prettier) should intercept and fix/block bad code.
+result: pass
 
 ### 5. Environment Documentation
 
@@ -50,9 +50,9 @@ result: pending
 ## Summary
 
 total: 5
-passed: 3
+passed: 5
 issues: 0
-pending: 2
+pending: 0
 skipped: 0
 
 ## Gaps

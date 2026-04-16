@@ -1,20 +1,21 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
-import { createTenantClient } from '@amdox/db';
+import { PrismaClient, createTenantClient } from '@amdox/db';
 import { ClsService } from 'nestjs-cls';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService implements OnModuleInit, OnModuleDestroy {
+  private readonly client: PrismaClient;
+
   constructor(private readonly cls: ClsService) {
-    super({ log: ['warn', 'error'] });
+    this.client = new PrismaClient({ log: ['warn', 'error'] });
   }
 
   async onModuleInit() {
-    await this.$connect();
+    await this.client.$connect();
   }
 
   async onModuleDestroy() {
-    await this.$disconnect();
+    await this.client.$disconnect();
   }
 
   /**
@@ -23,9 +24,32 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    */
   get tenant() {
     const tenantId = this.cls.get('tenantId');
-    if (!tenantId) {
+    if (!tenantId || tenantId === '*') {
       throw new Error('Tenant context not available in CLS');
     }
-    return createTenantClient(this, tenantId);
+    return createTenantClient(this.client, tenantId);
+  }
+
+  forTenant(tenantId: string) {
+    if (!tenantId || tenantId === '*') {
+      throw new Error('Explicit tenantId is required for background operations.');
+    }
+    return createTenantClient(this.client, tenantId);
+  }
+
+  /**
+   * Returns the unscoped Prisma client for framework-level operations
+   * such as scheduled jobs and tenant discovery.
+   */
+  get raw() {
+    return this.client;
+  }
+
+  get auditLog() {
+    return this.client.auditLog;
+  }
+
+  get $transaction(): PrismaClient['$transaction'] {
+    return this.client.$transaction.bind(this.client) as PrismaClient['$transaction'];
   }
 }

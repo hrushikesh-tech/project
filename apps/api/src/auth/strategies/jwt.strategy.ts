@@ -1,13 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { passportJwtSecret } from 'jwks-rsa';
 import { RequestUser } from '../../common/interfaces/request-user.interface';
+import { AuthService } from '../auth.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(configService: ConfigService) {
+  constructor(
+    configService: ConfigService,
+    private authService: AuthService,
+  ) {
     const keycloakUrl = configService.get<string>('KEYCLOAK_URL', 'http://localhost:8080');
     const realm = configService.get<string>('KEYCLOAK_REALM', 'amdox-erp');
 
@@ -25,12 +29,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  validate(payload: any): RequestUser {
+  async validate(payload: any): Promise<RequestUser> {
+    if (payload.jti && await this.authService.isTokenBlacklisted(payload.jti)) {
+      throw new UnauthorizedException('Token has been revoked');
+    }
+
+    const roles = Array.isArray(payload.realm_access?.roles) ? payload.realm_access.roles : [];
+    const tenantClaim = Array.isArray(payload.tenant_id) ? payload.tenant_id[0] : payload.tenant_id;
+    const tenantId =
+      typeof tenantClaim === 'string' && tenantClaim.trim().length > 0
+        ? tenantClaim
+        : undefined;
+
     return {
       userId: payload.sub,
       email: payload.email,
-      roles: payload.realm_access?.roles || [],
-      tenantId: payload.tenant_id,
+      roles,
+      tenantId,
     };
   }
 }

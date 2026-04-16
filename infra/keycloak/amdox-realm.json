@@ -177,7 +177,7 @@
         {
           "type": "password",
           "value": "Admin@123456",
-          "temporary": true
+          "temporary": false
         }
       ],
       "realmRoles": [

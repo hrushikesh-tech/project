@@ -1,9 +1,15 @@
 {
   "extends": "../config/base.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "declaration": true
+    "outDir": "dist",
+    "rootDir": "src",
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "target": "ES2022",
+    "declaration": true,
+    "declarationMap": true,
+    "skipLibCheck": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

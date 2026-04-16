@@ -36,6 +36,8 @@ services:
       KC_DB_PASSWORD: rootpassword
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: adminpassword
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: adminpassword
     ports:
       - "8080:8080"
     volumes:

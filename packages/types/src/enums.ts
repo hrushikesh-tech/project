@@ -25,22 +25,6 @@ export enum LeaveStatus {
   CANCELLED = 'CANCELLED',
 }
 
-// Invoice Status
-export enum InvoiceStatus {
-  DRAFT = 'DRAFT',
-  PENDING_REVIEW = 'PENDING_REVIEW',
-  APPROVED = 'APPROVED',
-  POSTED = 'POSTED',
-  PAID = 'PAID',
-  VOID = 'VOID',
-}
-
-// Invoice Type
-export enum InvoiceType {
-  PAYABLE = 'PAYABLE',
-  RECEIVABLE = 'RECEIVABLE',
-}
-
 // Employee Status
 export enum EmployeeStatus {
   ACTIVE = 'ACTIVE',
@@ -52,7 +36,6 @@ export enum EmployeeStatus {
 // Journal Entry Status
 export enum JournalEntryStatus {
   DRAFT = 'DRAFT',
-  PENDING_APPROVAL = 'PENDING_APPROVAL',
   POSTED = 'POSTED',
   REVERSED = 'REVERSED',
 }
@@ -101,14 +84,6 @@ export enum UserRole {
   SUPPLY_CHAIN_MANAGER = 'supply_chain_manager',
   PROJECT_MANAGER = 'project_manager',
   VIEWER = 'viewer',
-}
-
-// Three-Way Match Status
-export enum MatchStatus {
-  PENDING = 'PENDING',
-  MATCHED = 'MATCHED',
-  MISMATCHED = 'MISMATCHED',
-  MANUAL_REVIEW = 'MANUAL_REVIEW',
 }
 
 // Audit Action Types

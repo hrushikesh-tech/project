@@ -40,17 +40,7 @@ export const softDeleteExtension = Prisma.defineExtension({
         }
 
         // Convert delete to soft delete (update with deletedAt timestamp)
-        if (operation === 'delete') {
-          // Change operation to update
-          return (query as any)({
-            ...args,
-            // We need to use the raw client to perform an update instead
-          });
-        }
-
-        // For delete and deleteMany, we need a different approach:
-        // Override at the model level to convert to update
-        if (operation === 'delete') {
+        if (operation as string === 'delete') {
           const context = Prisma.getExtensionContext(this) as any;
           return context[model as string].update({
             where: (args as any).where,

@@ -4,12 +4,16 @@ import {
   ExecutionContext,
   CallHandler,
 } from '@nestjs/common';
+import { ClsService } from 'nestjs-cls';
 import { Observable, tap } from 'rxjs';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cls: ClsService,
+  ) {}
 
   async intercept(
     context: ExecutionContext,
@@ -50,7 +54,7 @@ export class AuditInterceptor implements NestInterceptor {
                 before: beforeSnapshot ? JSON.parse(JSON.stringify(beforeSnapshot)) : null,
                 after: responseBody ? JSON.parse(JSON.stringify(responseBody)) : null,
                 userId: request.user?.userId || 'anonymous',
-                tenantId: request.user?.tenantId || 'system',
+                tenantId: request.user?.tenantId || this.cls.get('tenantId') || 'system',
                 ipAddress: request.ip,
                 userAgent: request.headers?.['user-agent'] || null,
                 timestamp: new Date(),
