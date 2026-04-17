@@ -7,7 +7,7 @@ export {
   JournalEntryStatus,
   NotificationChannel,
   WidgetType,
-} from '@prisma/client';
+} from "@prisma/client";
 export type {
   Tenant,
   User,
@@ -53,7 +53,14 @@ export type {
   NotificationPreference,
   WebhookConfig,
   NotificationTemplate,
-} from '@prisma/client';
+} from "@prisma/client";
+export {
+  AttendanceCorrectionException,
+  DepartmentHeadValidationException,
+  EmployeeLifecycleException,
+  InsufficientLeaveBalanceException,
+  InvalidLeaveTransitionException,
+} from "@amdox/types";
 
 export interface Customer {
   id: string;
@@ -74,6 +81,6 @@ export interface Customer {
 }
 
 // Re-export client factory and extensions
-export { createPrismaClient, createTenantClient } from './client';
-export { createTenantExtension } from './extensions/tenant.extension';
-export { softDeleteExtension } from './extensions/soft-delete.extension';
+export { createPrismaClient, createTenantClient } from "./client";
+export { createTenantExtension } from "./extensions/tenant.extension";
+export { softDeleteExtension } from "./extensions/soft-delete.extension";

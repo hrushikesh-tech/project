@@ -426,7 +426,7 @@ model Employee {
   dateOfBirth     DateTime?
   hireDate        DateTime
   terminationDate DateTime?
-  status          String    @default("ACTIVE")
+  status          String    @default("PRE_START")
   departmentId    String
   designationId   String?
   managerId       String?
@@ -440,12 +440,13 @@ model Employee {
   reports Employee[] @relation("EmployeeHierarchy")
 
   // Relations
-  department    Department     @relation(fields: [departmentId], references: [id])
-  leaveRequests LeaveRequest[]
-  leaveBalances LeaveBalance[]
-  attendances   Attendance[]
-  payslips      Payslip[]
-  tasks         Task[]
+  department        Department     @relation(fields: [departmentId], references: [id])
+  headedDepartment  Department?    @relation("DepartmentHead")
+  leaveRequests     LeaveRequest[]
+  leaveBalances     LeaveBalance[]
+  attendances       Attendance[]
+  payslips          Payslip[]
+  tasks             Task[]
 
   @@unique([tenantId, employeeCode])
   @@index([tenantId])
@@ -471,11 +472,13 @@ model Department {
 
   // Relations
   tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  head      Employee?  @relation("DepartmentHead", fields: [headId], references: [id], onDelete: SetNull)
   employees Employee[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
   @@index([parentId])
+  @@index([headId])
 }
 
 model LeaveType {
@@ -506,7 +509,14 @@ model LeaveRequest {
   endDate     DateTime
   status      String    @default("DRAFT")
   reason      String?
+  submittedAt DateTime?
   approvedBy  String?
+  approvedAt  DateTime?
+  rejectedAt  DateTime?
+  cancelledAt DateTime?
+  rejectionReason String?
+  cancelReason String?
+  systemReason String?
   tenantId    String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -550,6 +560,9 @@ model Attendance {
   hoursWorked   Decimal?
   overtimeHours Decimal   @default(0)
   status        String    @default("PRESENT")
+  correctedBy   String?
+  correctedAt   DateTime?
+  correctionReason String?
   tenantId      String
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
