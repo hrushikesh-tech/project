@@ -24,8 +24,12 @@ const clone = (record) => (record ? { ...record } : record);
 
 const matches = (item, where = {}) => {
   if (!where) return true;
-  if (Array.isArray(where.AND)) return where.AND.every((clause) => matches(item, clause));
-  if (Array.isArray(where.OR)) return where.OR.some((clause) => matches(item, clause));
+  if (Array.isArray(where.AND) && !where.AND.every((clause) => matches(item, clause))) {
+    return false;
+  }
+  if (Array.isArray(where.OR) && !where.OR.some((clause) => matches(item, clause))) {
+    return false;
+  }
 
   return Object.entries(where).every(([key, value]) => {
     if (key === 'AND' || key === 'OR' || value === undefined) return true;

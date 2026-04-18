@@ -11,6 +11,9 @@ export class PayslipStorageService {
     this.bucket = this.configService.get<string>("AWS_S3_BUCKET", "");
     this.client = new S3Client({
       region: this.configService.get<string>("AWS_REGION"),
+      endpoint: this.configService.get<string>("AWS_S3_ENDPOINT") || undefined,
+      forcePathStyle:
+        this.configService.get<string>("AWS_S3_FORCE_PATH_STYLE") === "true",
       credentials: {
         accessKeyId: this.configService.get<string>("AWS_ACCESS_KEY_ID", ""),
         secretAccessKey: this.configService.get<string>(

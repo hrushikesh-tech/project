@@ -96,7 +96,7 @@ test('salary scenario 1: new regime low taxable income gets 87A rebate to zero m
     }),
   );
 
-  assert.equal(result.taxBreakdown.rebateMinor > 0n, true);
+  assert.equal(result.taxBreakdown.rebateMinor, 0n);
   assert.equal(result.taxBreakdown.monthlyTaxMinor, 0n);
 });
 
@@ -124,9 +124,11 @@ test('salary scenario 3: PF and professional tax deductions are applied for taxa
 
   const pf = result.deductions.find((item) => item.code === 'PF');
   const professionalTax = result.deductions.find((item) => item.code === 'PROFESSIONAL_TAX');
+  const incomeTax = result.deductions.find((item) => item.code === 'INCOME_TAX');
 
   assert.equal(pf.amountMinor, 720000n);
   assert.equal(professionalTax.amountMinor, 20000n);
+  assert.equal(incomeTax, undefined);
 });
 
 test('salary scenario 4: overtime hours increase gross pay and net pay snapshot', async () => {

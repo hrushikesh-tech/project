@@ -53,6 +53,16 @@ export class PayslipPdfService {
     deductions: unknown;
     taxBreakdown: unknown;
   }) {
+    const serialize = (value: unknown) =>
+      JSON.stringify(
+        value,
+        (_key, nestedValue) =>
+          typeof nestedValue === "bigint"
+            ? nestedValue.toString()
+            : nestedValue,
+        2,
+      );
+
     return `
       <html>
         <body style="font-family: Arial, sans-serif; padding: 24px;">
@@ -61,15 +71,11 @@ export class PayslipPdfService {
           <p><strong>Period:</strong> ${params.period}</p>
           <p><strong>Gross:</strong> ${params.grossPayMinor.toString()}</p>
           <p><strong>Net:</strong> ${params.netPayMinor.toString()}</p>
-          <pre>${JSON.stringify(
-            {
-              earnings: params.earnings,
-              deductions: params.deductions,
-              taxBreakdown: params.taxBreakdown,
-            },
-            null,
-            2,
-          )}</pre>
+          <pre>${serialize({
+            earnings: params.earnings,
+            deductions: params.deductions,
+            taxBreakdown: params.taxBreakdown,
+          })}</pre>
         </body>
       </html>
     `;

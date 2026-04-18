@@ -10,6 +10,7 @@ import {
 const MINOR_UNIT_FACTOR = 100n;
 const ANNUAL_MONTHS = 12n;
 const STANDARD_DEDUCTION_MINOR = 50000n * MINOR_UNIT_FACTOR;
+const HEALTH_AND_EDUCATION_CESS_PERCENT = 4;
 
 type AnnualTaxComputation = {
   taxableIncomeMinor: bigint;
@@ -105,11 +106,28 @@ export class IndiaTaxService {
         ? annualTaxMinor
         : 0n;
     const netAnnualTaxMinor = this.nonNegative(annualTaxMinor - rebateMinor);
+    const cessMinor = this.multiplyByRate(
+      netAnnualTaxMinor,
+      HEALTH_AND_EDUCATION_CESS_PERCENT,
+    );
+    const totalAnnualTaxMinor = netAnnualTaxMinor + cessMinor;
+
+    if (cessMinor > 0n) {
+      slabBreakdown.push({
+        code: "HEALTH_EDUCATION_CESS",
+        name: "Health and education cess",
+        amountMinor: cessMinor,
+        category: "TAX",
+        metadata: {
+          rate: `${HEALTH_AND_EDUCATION_CESS_PERCENT}`,
+        },
+      });
+    }
 
     return {
       taxableIncomeMinor,
-      annualTaxMinor: netAnnualTaxMinor,
-      monthlyTaxMinor: this.roundDivide(netAnnualTaxMinor, ANNUAL_MONTHS),
+      annualTaxMinor: totalAnnualTaxMinor,
+      monthlyTaxMinor: this.roundDivide(totalAnnualTaxMinor, ANNUAL_MONTHS),
       rebateMinor,
       slabBreakdown,
     };
