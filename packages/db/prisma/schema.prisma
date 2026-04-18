@@ -141,6 +141,8 @@ model LegalEntity {
   invoices            Invoice[]
   purchaseOrders      PurchaseOrder[]
   goodsReceipts       GoodsReceipt[]
+  salaryStructures    SalaryStructure[]
+  payrollRuns         PayrollRun[]
   outgoingTransfers   IntercompanyTransfer[] @relation("IntercompanyFromEntity")
   incomingTransfers   IntercompanyTransfer[] @relation("IntercompanyToEntity")
 
@@ -445,6 +447,8 @@ model Employee {
   leaveRequests     LeaveRequest[]
   leaveBalances     LeaveBalance[]
   attendances       Attendance[]
+  salaryStructures  SalaryStructure[]
+  payrollResults    PayrollResult[]
   payslips          Payslip[]
   tasks             Task[]
 
@@ -583,7 +587,14 @@ model Attendance {
 model PayrollRun {
   id              String    @id @default(cuid())
   period          String
+  periodStart     DateTime
+  periodEnd       DateTime
+  legalEntityId   String
   status          String    @default("DRAFT")
+  processingStage String    @default("QUEUED")
+  failureReason   String?
+  attemptNumber   Int       @default(1)
+  queuedAt        DateTime?
   totalGross      BigInt    @default(0)
   totalDeductions BigInt    @default(0)
   totalNet        BigInt    @default(0)
@@ -591,39 +602,153 @@ model PayrollRun {
   totalCount      Int       @default(0)
   startedAt       DateTime?
   completedAt     DateTime?
+  glJournalEntryId String?
+  compensationJournalEntryId String?
   tenantId        String
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
 
   // Relations
-  payslips Payslip[]
+  legalEntity    LegalEntity    @relation(fields: [legalEntityId], references: [id], onDelete: Cascade)
+  payrollResults PayrollResult[]
+  payslips       Payslip[]
 
   @@index([tenantId])
   @@index([tenantId, status])
+  @@index([legalEntityId])
+  @@index([tenantId, legalEntityId, periodStart, periodEnd])
+  @@index([tenantId, processingStage])
+  @@unique([tenantId, legalEntityId, periodStart, periodEnd, attemptNumber])
 }
 
 model Payslip {
   id           String    @id @default(cuid())
   payrollRunId String
+  payrollResultId String? @unique
   employeeId   String
   grossPay     BigInt
+  earnings     Json
   deductions   Json
   netPay       BigInt
   taxBreakdown Json
   pdfUrl       String?
+  storageBucket String?
+  storageKey   String?
+  fileName     String?
+  contentType  String?
+  renderMetadata Json?
+  renderedAt   DateTime?
   tenantId     String
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
   // Relations
-  payrollRun PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
-  employee   Employee   @relation(fields: [employeeId], references: [id])
+  payrollRun    PayrollRun     @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  payrollResult PayrollResult? @relation(fields: [payrollResultId], references: [id], onDelete: SetNull)
+  employee      Employee       @relation(fields: [employeeId], references: [id])
 
   @@index([tenantId])
   @@index([payrollRunId])
   @@index([employeeId])
+}
+
+model SalaryStructure {
+  id                        String    @id @default(cuid())
+  employeeId                String
+  legalEntityId             String
+  name                      String
+  currency                  String    @default("INR")
+  taxRegime                 String
+  effectiveFrom             DateTime
+  effectiveTo               DateTime?
+  pfApplicable              Boolean   @default(true)
+  professionalTaxApplicable Boolean   @default(true)
+  overtimeEligible          Boolean   @default(true)
+  tenantId                  String
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  deletedAt                 DateTime?
+
+  employee       Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  legalEntity    LegalEntity      @relation(fields: [legalEntityId], references: [id], onDelete: Cascade)
+  components     SalaryComponent[]
+  payrollResults PayrollResult[]
+
+  @@index([tenantId])
+  @@index([employeeId])
+  @@index([legalEntityId])
+  @@index([tenantId, employeeId, effectiveFrom, effectiveTo])
+  @@unique([tenantId, employeeId, legalEntityId, effectiveFrom])
+}
+
+model SalaryComponent {
+  id                        String    @id @default(cuid())
+  salaryStructureId         String
+  code                      String
+  name                      String
+  componentType             String
+  amountMinor               BigInt
+  calculationType           String    @default("FIXED")
+  isRecurring               Boolean   @default(true)
+  isTaxable                 Boolean   @default(true)
+  pfApplicable              Boolean   @default(false)
+  professionalTaxApplicable Boolean   @default(false)
+  overtimeApplicable        Boolean   @default(false)
+  sortOrder                 Int       @default(0)
+  tenantId                  String
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  deletedAt                 DateTime?
+
+  salaryStructure SalaryStructure @relation(fields: [salaryStructureId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([salaryStructureId])
+  @@index([tenantId, componentType])
+  @@unique([salaryStructureId, code])
+}
+
+model PayrollResult {
+  id                String    @id @default(cuid())
+  payrollRunId      String
+  employeeId        String
+  salaryStructureId String?
+  status            String    @default("PENDING")
+  processingStage   String    @default("SNAPSHOT_CREATED")
+  grossPay          BigInt    @default(0)
+  totalDeductions   BigInt    @default(0)
+  netPay            BigInt    @default(0)
+  earnings          Json
+  deductions        Json
+  taxBreakdown      Json
+  payableDays       Decimal   @default(0)
+  lossOfPay         BigInt    @default(0)
+  overtime          BigInt    @default(0)
+  overtimeHours     Decimal   @default(0)
+  workingDays       Int       @default(0)
+  presentDays       Decimal   @default(0)
+  leaveDays         Decimal   @default(0)
+  inputSnapshot     Json?
+  failureReason     String?
+  processedAt       DateTime?
+  tenantId          String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  payrollRun      PayrollRun       @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employee        Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  salaryStructure SalaryStructure? @relation(fields: [salaryStructureId], references: [id], onDelete: SetNull)
+  payslip         Payslip?
+
+  @@index([tenantId])
+  @@index([employeeId])
+  @@index([payrollRunId])
+  @@index([tenantId, status])
+  @@index([tenantId, processingStage])
+  @@unique([tenantId, payrollRunId, employeeId])
 }
 
 model TaxSlab {

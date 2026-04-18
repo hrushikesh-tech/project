@@ -3,31 +3,32 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import {
-  AccountType,
-  Prisma,
-} from '@amdox/db';
+} from "@nestjs/common";
+import { AccountType, Prisma } from "@amdox/db";
 import {
   JournalEntryStatus,
   PeriodClosedException,
   PostedEntryImmutableException,
   UnbalancedEntryException,
-} from '@amdox/types';
-import { ClsService } from 'nestjs-cls';
-import { FxRatesService } from './fx-rates.service';
-import { serializeFinanceValue } from './finance.serialization';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateAccountDto } from './dto/create-account.dto';
-import { CreateFiscalPeriodDto } from './dto/create-fiscal-period.dto';
-import { CreateIntercompanyTransferDto } from './dto/create-intercompany-transfer.dto';
+} from "@amdox/types";
+import { ClsService } from "nestjs-cls";
+import { FxRatesService } from "./fx-rates.service";
+import { serializeFinanceValue } from "./finance.serialization";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreateAccountDto } from "./dto/create-account.dto";
+import { CreateFiscalPeriodDto } from "./dto/create-fiscal-period.dto";
+import { CreateIntercompanyTransferDto } from "./dto/create-intercompany-transfer.dto";
 import {
   CreateJournalEntryDto,
   CreateJournalLineDto,
   ReverseJournalEntryDto,
-} from './dto/create-journal-entry.dto';
-import { CreateLegalEntityDto } from './dto/create-legal-entity.dto';
-import { FxRateQueryDto, JournalEntryQueryDto, ReportQueryDto } from './dto/finance-query.dto';
+} from "./dto/create-journal-entry.dto";
+import { CreateLegalEntityDto } from "./dto/create-legal-entity.dto";
+import {
+  FxRateQueryDto,
+  JournalEntryQueryDto,
+  ReportQueryDto,
+} from "./dto/finance-query.dto";
 
 type TenantDb = Prisma.TransactionClient;
 
@@ -64,7 +65,7 @@ export class FinanceService {
     return serializeFinanceValue(
       await this.prisma.tenant.legalEntity.findMany({
         where: { deletedAt: null },
-        orderBy: [{ code: 'asc' }],
+        orderBy: [{ code: "asc" }],
       }),
     );
   }
@@ -95,7 +96,7 @@ export class FinanceService {
           parent: true,
           legalEntity: true,
         },
-        orderBy: [{ code: 'asc' }],
+        orderBy: [{ code: "asc" }],
       }),
     );
   }
@@ -109,7 +110,9 @@ export class FinanceService {
         where: { id: dto.parentId },
       });
       if (!parent || parent.legalEntityId !== dto.legalEntityId) {
-        throw new BadRequestException('Parent account must exist in the same legal entity.');
+        throw new BadRequestException(
+          "Parent account must exist in the same legal entity.",
+        );
       }
     }
 
@@ -123,7 +126,7 @@ export class FinanceService {
           type: dto.type,
           parentId: dto.parentId ?? null,
           isActive: dto.isActive ?? true,
-          currency: (dto.currency ?? 'INR').trim().toUpperCase(),
+          currency: (dto.currency ?? "INR").trim().toUpperCase(),
         },
         include: {
           parent: true,
@@ -138,7 +141,7 @@ export class FinanceService {
     return serializeFinanceValue(
       await this.prisma.tenant.fiscalPeriod.findMany({
         where: { legalEntityId },
-        orderBy: [{ startDate: 'asc' }],
+        orderBy: [{ startDate: "asc" }],
       }),
     );
   }
@@ -150,7 +153,9 @@ export class FinanceService {
     const startDate = new Date(dto.startDate);
     const endDate = new Date(dto.endDate);
     if (startDate >= endDate) {
-      throw new BadRequestException('Fiscal period endDate must be after startDate.');
+      throw new BadRequestException(
+        "Fiscal period endDate must be after startDate.",
+      );
     }
 
     return serializeFinanceValue(
@@ -171,7 +176,7 @@ export class FinanceService {
       where: { id: periodId },
     });
     if (!period) {
-      throw new NotFoundException('Fiscal period not found.');
+      throw new NotFoundException("Fiscal period not found.");
     }
 
     return serializeFinanceValue(
@@ -180,7 +185,7 @@ export class FinanceService {
         data: {
           isClosed: true,
           closedAt: new Date(),
-          closedBy: closedBy ?? 'system',
+          closedBy: closedBy ?? "system",
         },
       }),
     );
@@ -207,7 +212,7 @@ export class FinanceService {
           originalEntry: true,
           reversalEntry: true,
         },
-        orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
+        orderBy: [{ date: "asc" }, { createdAt: "asc" }],
       }),
     );
   }
@@ -215,11 +220,16 @@ export class FinanceService {
   async createJournalEntry(dto: CreateJournalEntryDto) {
     return serializeFinanceValue(
       await this.withTenantTransaction(async (db) => {
-        const legalEntity = await this.getLegalEntityOrThrow(db, dto.legalEntityId);
+        const legalEntity = await this.getLegalEntityOrThrow(
+          db,
+          dto.legalEntityId,
+        );
         const period = await this.getPeriodOrThrow(db, dto.periodId);
 
         if (period.legalEntityId !== dto.legalEntityId) {
-          throw new BadRequestException('Journal period must belong to the same legal entity.');
+          throw new BadRequestException(
+            "Journal period must belong to the same legal entity.",
+          );
         }
 
         const preparedLines = await this.prepareJournalLines(
@@ -236,7 +246,7 @@ export class FinanceService {
           date: new Date(dto.date),
           description: dto.description.trim(),
           status: JournalEntryStatus.DRAFT,
-          entryNumber: this.createEntryNumber('JE'),
+          entryNumber: this.createEntryNumber("JE"),
           lines: preparedLines,
         });
       }),
@@ -255,7 +265,7 @@ export class FinanceService {
           include: { lines: true, period: true, legalEntity: true },
         });
         if (!entry) {
-          throw new NotFoundException('Journal entry not found.');
+          throw new NotFoundException("Journal entry not found.");
         }
 
         if (entry.status === JournalEntryStatus.POSTED) {
@@ -263,7 +273,9 @@ export class FinanceService {
         }
 
         if (entry.status === JournalEntryStatus.REVERSED) {
-          throw new PostedEntryImmutableException('Reversed journal entries cannot be re-posted.');
+          throw new PostedEntryImmutableException(
+            "Reversed journal entries cannot be re-posted.",
+          );
         }
 
         this.ensurePeriodOpen(entry.period);
@@ -285,7 +297,7 @@ export class FinanceService {
           data: {
             status: JournalEntryStatus.POSTED,
             postedAt: new Date(),
-            postedBy: postedBy ?? 'system',
+            postedBy: postedBy ?? "system",
           },
           include: {
             lines: {
@@ -299,7 +311,10 @@ export class FinanceService {
     );
   }
 
-  async updateDraftJournalDescription(journalEntryId: string, description: string) {
+  async updateDraftJournalDescription(
+    journalEntryId: string,
+    description: string,
+  ) {
     return this.withTenantTransaction(async (db) => {
       const entry = await db.journalEntry.findFirst({
         where: {
@@ -310,9 +325,9 @@ export class FinanceService {
       });
 
       if (!entry) {
-        throw new NotFoundException('Journal entry not found.');
+        throw new NotFoundException("Journal entry not found.");
       }
-      this.ensureEntryEditable(entry.status as any);
+      this.ensureEntryEditable(entry.status as JournalEntryStatus);
 
       return db.journalEntry.update({
         where: { id: journalEntryId },
@@ -342,19 +357,25 @@ export class FinanceService {
           },
         });
         if (!entry) {
-          throw new NotFoundException('Journal entry not found.');
+          throw new NotFoundException("Journal entry not found.");
         }
         if (entry.status !== JournalEntryStatus.POSTED) {
-          throw new PostedEntryImmutableException('Only posted entries can be reversed.');
+          throw new PostedEntryImmutableException(
+            "Only posted entries can be reversed.",
+          );
         }
         if (entry.reversalEntry) {
-          throw new PostedEntryImmutableException('This journal entry has already been reversed.');
+          throw new PostedEntryImmutableException(
+            "This journal entry has already been reversed.",
+          );
         }
 
         const targetPeriodId = dto.periodId ?? entry.periodId;
         const targetPeriod = await this.getPeriodOrThrow(db, targetPeriodId);
         if (targetPeriod.legalEntityId !== entry.legalEntityId) {
-          throw new BadRequestException('Reversal period must belong to the same legal entity.');
+          throw new BadRequestException(
+            "Reversal period must belong to the same legal entity.",
+          );
         }
         this.ensurePeriodOpen(targetPeriod);
 
@@ -362,11 +383,140 @@ export class FinanceService {
           legalEntityId: entry.legalEntityId,
           periodId: targetPeriodId,
           date: dto.reversalDate ? new Date(dto.reversalDate) : new Date(),
-          description: dto.description?.trim() || `Reversal of ${entry.entryNumber}`,
+          description:
+            dto.description?.trim() || `Reversal of ${entry.entryNumber}`,
           status: JournalEntryStatus.POSTED,
-          entryNumber: this.createEntryNumber('REV'),
+          entryNumber: this.createEntryNumber("REV"),
           postedAt: new Date(),
-          postedBy: postedBy ?? 'system',
+          postedBy: postedBy ?? "system",
+          originalEntryId: entry.id,
+          lines: entry.lines.map((line) => ({
+            accountId: line.accountId,
+            debit: line.credit,
+            credit: line.debit,
+            transactionDebit: line.transactionCredit,
+            transactionCredit: line.transactionDebit,
+            currency: line.currency,
+            fxRate: line.fxRate,
+            description: line.description,
+          })),
+        });
+
+        await db.journalEntry.update({
+          where: { id: entry.id },
+          data: { status: JournalEntryStatus.REVERSED },
+        });
+
+        return reversal;
+      }),
+    );
+  }
+
+  async createAndPostJournalEntryForTenant(
+    tenantId: string,
+    dto: CreateJournalEntryDto,
+    postedBy?: string,
+  ) {
+    return serializeFinanceValue(
+      await this.prisma.$transaction(async (db) => {
+        const legalEntity = await this.getLegalEntityOrThrow(
+          db,
+          dto.legalEntityId,
+          tenantId,
+        );
+        const period = await this.getPeriodOrThrow(db, dto.periodId, tenantId);
+
+        if (period.legalEntityId !== dto.legalEntityId) {
+          throw new BadRequestException(
+            "Journal period must belong to the same legal entity.",
+          );
+        }
+        this.ensurePeriodOpen(period);
+
+        const preparedLines = await this.prepareJournalLinesForTenant(
+          db,
+          tenantId,
+          legalEntity,
+          new Date(dto.date),
+          dto.lines,
+        );
+        this.assertBalanced(preparedLines);
+
+        return this.createJournalEntryRecord(db, {
+          tenantId,
+          legalEntityId: dto.legalEntityId,
+          periodId: dto.periodId,
+          date: new Date(dto.date),
+          description: dto.description.trim(),
+          status: JournalEntryStatus.POSTED,
+          entryNumber: this.createEntryNumber("PAY"),
+          postedAt: new Date(),
+          postedBy: postedBy ?? "system",
+          lines: preparedLines,
+        });
+      }),
+    );
+  }
+
+  async reverseJournalEntryForTenant(
+    tenantId: string,
+    journalEntryId: string,
+    dto: ReverseJournalEntryDto,
+    postedBy?: string,
+  ) {
+    return serializeFinanceValue(
+      await this.prisma.$transaction(async (db) => {
+        const entry = await db.journalEntry.findFirst({
+          where: {
+            id: journalEntryId,
+            tenantId,
+            deletedAt: null,
+          },
+          include: {
+            lines: true,
+            period: true,
+            reversalEntry: true,
+            legalEntity: true,
+          },
+        });
+        if (!entry) {
+          throw new NotFoundException("Journal entry not found.");
+        }
+        if (entry.status !== JournalEntryStatus.POSTED) {
+          throw new PostedEntryImmutableException(
+            "Only posted entries can be reversed.",
+          );
+        }
+        if (entry.reversalEntry) {
+          throw new PostedEntryImmutableException(
+            "This journal entry has already been reversed.",
+          );
+        }
+
+        const targetPeriodId = dto.periodId ?? entry.periodId;
+        const targetPeriod = await this.getPeriodOrThrow(
+          db,
+          targetPeriodId,
+          tenantId,
+        );
+        if (targetPeriod.legalEntityId !== entry.legalEntityId) {
+          throw new BadRequestException(
+            "Reversal period must belong to the same legal entity.",
+          );
+        }
+        this.ensurePeriodOpen(targetPeriod);
+
+        const reversal = await this.createJournalEntryRecord(db, {
+          tenantId,
+          legalEntityId: entry.legalEntityId,
+          periodId: targetPeriodId,
+          date: dto.reversalDate ? new Date(dto.reversalDate) : new Date(),
+          description:
+            dto.description?.trim() || `Reversal of ${entry.entryNumber}`,
+          status: JournalEntryStatus.POSTED,
+          entryNumber: this.createEntryNumber("PAY-REV"),
+          postedAt: new Date(),
+          postedBy: postedBy ?? "system",
           originalEntryId: entry.id,
           lines: entry.lines.map((line) => ({
             accountId: line.accountId,
@@ -392,7 +542,9 @@ export class FinanceService {
 
   async getFxRate(query: FxRateQueryDto) {
     const tenantId = this.requireTenantId();
-    const effectiveDate = query.effectiveDate ? new Date(query.effectiveDate) : new Date();
+    const effectiveDate = query.effectiveDate
+      ? new Date(query.effectiveDate)
+      : new Date();
     const rate = await this.fxRatesService.getRate({
       tenantId,
       baseCurrency: query.baseCurrency.toUpperCase(),
@@ -437,7 +589,9 @@ export class FinanceService {
   async getBalanceSheet(query: ReportQueryDto) {
     const rows = await this.getStatementRows(query);
     const assets = this.buildStatementCategory(rows, [AccountType.ASSET]);
-    const liabilities = this.buildStatementCategory(rows, [AccountType.LIABILITY]);
+    const liabilities = this.buildStatementCategory(rows, [
+      AccountType.LIABILITY,
+    ]);
     const equity = this.buildStatementCategory(rows, [AccountType.EQUITY]);
 
     return {
@@ -470,25 +624,46 @@ export class FinanceService {
     };
   }
 
-  async createIntercompanyTransfer(dto: CreateIntercompanyTransferDto, postedBy?: string) {
+  async createIntercompanyTransfer(
+    dto: CreateIntercompanyTransferDto,
+    postedBy?: string,
+  ) {
     return serializeFinanceValue(
       await this.withTenantTransaction(async (db) => {
         if (dto.sourceLegalEntityId === dto.destinationLegalEntityId) {
-          throw new BadRequestException('Intercompany transfers require two different legal entities.');
+          throw new BadRequestException(
+            "Intercompany transfers require two different legal entities.",
+          );
         }
 
-        const sourceEntity = await this.getLegalEntityOrThrow(db, dto.sourceLegalEntityId);
-        const destinationEntity = await this.getLegalEntityOrThrow(db, dto.destinationLegalEntityId);
-        const sourcePeriod = await this.getPeriodOrThrow(db, dto.sourcePeriodId);
-        const destinationPeriod = await this.getPeriodOrThrow(db, dto.destinationPeriodId);
+        const sourceEntity = await this.getLegalEntityOrThrow(
+          db,
+          dto.sourceLegalEntityId,
+        );
+        const destinationEntity = await this.getLegalEntityOrThrow(
+          db,
+          dto.destinationLegalEntityId,
+        );
+        const sourcePeriod = await this.getPeriodOrThrow(
+          db,
+          dto.sourcePeriodId,
+        );
+        const destinationPeriod = await this.getPeriodOrThrow(
+          db,
+          dto.destinationPeriodId,
+        );
         this.ensurePeriodOpen(sourcePeriod);
         this.ensurePeriodOpen(destinationPeriod);
 
         if (sourcePeriod.legalEntityId !== sourceEntity.id) {
-          throw new BadRequestException('Source period must belong to the source legal entity.');
+          throw new BadRequestException(
+            "Source period must belong to the source legal entity.",
+          );
         }
         if (destinationPeriod.legalEntityId !== destinationEntity.id) {
-          throw new BadRequestException('Destination period must belong to the destination legal entity.');
+          throw new BadRequestException(
+            "Destination period must belong to the destination legal entity.",
+          );
         }
 
         const sourceAccounts = await this.getAccountMap(db, [
@@ -503,12 +678,12 @@ export class FinanceService {
         this.ensureAccountsBelongToEntity(
           sourceAccounts,
           sourceEntity.id,
-          'All source accounts must belong to the source legal entity.',
+          "All source accounts must belong to the source legal entity.",
         );
         this.ensureAccountsBelongToEntity(
           destinationAccounts,
           destinationEntity.id,
-          'All destination accounts must belong to the destination legal entity.',
+          "All destination accounts must belong to the destination legal entity.",
         );
 
         const sourceLines: PreparedJournalLine[] = [];
@@ -602,9 +777,9 @@ export class FinanceService {
           date: new Date(dto.transactionDate),
           description: `${dto.description} (source)`,
           status: JournalEntryStatus.POSTED,
-          entryNumber: this.createEntryNumber('ICT-SRC'),
+          entryNumber: this.createEntryNumber("ICT-SRC"),
           postedAt: new Date(),
-          postedBy: postedBy ?? 'system',
+          postedBy: postedBy ?? "system",
           lines: sourceLines,
         });
 
@@ -614,16 +789,16 @@ export class FinanceService {
           date: new Date(dto.transactionDate),
           description: `${dto.description} (destination)`,
           status: JournalEntryStatus.POSTED,
-          entryNumber: this.createEntryNumber('ICT-DST'),
+          entryNumber: this.createEntryNumber("ICT-DST"),
           postedAt: new Date(),
-          postedBy: postedBy ?? 'system',
+          postedBy: postedBy ?? "system",
           lines: destinationLines,
         });
 
         const transfer = await db.intercompanyTransfer.create({
           data: {
             tenantId: this.requireTenantId(),
-            transferNumber: this.createEntryNumber('ICT'),
+            transferNumber: this.createEntryNumber("ICT"),
             description: dto.description,
             transactionDate: new Date(dto.transactionDate),
             currency: dto.currency.toUpperCase(),
@@ -650,14 +825,16 @@ export class FinanceService {
     );
   }
 
-  private async getStatementRows(query: ReportQueryDto): Promise<RawStatementRow[]> {
+  private async getStatementRows(
+    query: ReportQueryDto,
+  ): Promise<RawStatementRow[]> {
     await this.ensureLegalEntityExists(query.legalEntityId);
 
     const startDate = new Date(query.startDate);
     const endDate = new Date(query.endDate);
 
     if (startDate > endDate) {
-      throw new BadRequestException('Report startDate must be before endDate.');
+      throw new BadRequestException("Report startDate must be before endDate.");
     }
 
     const lines = await this.prisma.tenant.journalLine.findMany({
@@ -700,14 +877,21 @@ export class FinanceService {
     );
   }
 
-  private buildStatementCategory(rows: RawStatementRow[], allowedTypes: AccountType[]) {
+  private buildStatementCategory(
+    rows: RawStatementRow[],
+    allowedTypes: AccountType[],
+  ) {
     const lines = rows
       .filter((row) => allowedTypes.includes(row.accountType))
       .map((row) => ({
         accountId: row.accountId,
         accountCode: row.accountCode,
         accountName: row.accountName,
-        amountMinor: this.accountBalanceForStatement(row.accountType, row.debitMinor, row.creditMinor),
+        amountMinor: this.accountBalanceForStatement(
+          row.accountType,
+          row.debitMinor,
+          row.creditMinor,
+        ),
       }))
       .filter((row) => row.amountMinor !== 0n);
 
@@ -720,7 +904,11 @@ export class FinanceService {
     };
   }
 
-  private accountBalanceForStatement(type: AccountType, debit: bigint, credit: bigint) {
+  private accountBalanceForStatement(
+    type: AccountType,
+    debit: bigint,
+    credit: bigint,
+  ) {
     if (type === AccountType.ASSET || type === AccountType.EXPENSE) {
       return debit - credit;
     }
@@ -741,7 +929,7 @@ export class FinanceService {
     this.ensureAccountsBelongToEntity(
       accounts,
       legalEntity.id,
-      'All journal lines must reference accounts from the same legal entity.',
+      "All journal lines must reference accounts from the same legal entity.",
     );
 
     return Promise.all(
@@ -754,7 +942,7 @@ export class FinanceService {
           (transactionDebit > 0n && transactionCredit > 0n)
         ) {
           throw new BadRequestException(
-            'Each journal line must have either a debit or a credit amount, but not both.',
+            "Each journal line must have either a debit or a credit amount, but not both.",
           );
         }
 
@@ -779,18 +967,73 @@ export class FinanceService {
     );
   }
 
+  private async prepareJournalLinesForTenant(
+    db: TenantDb,
+    tenantId: string,
+    legalEntity: { id: string; baseCurrency: string },
+    effectiveDate: Date,
+    lines: CreateJournalLineDto[],
+  ) {
+    const accounts = await this.getAccountMap(
+      db,
+      lines.map((line) => line.accountId),
+      tenantId,
+    );
+    this.ensureAccountsBelongToEntity(
+      accounts,
+      legalEntity.id,
+      "All journal lines must reference accounts from the same legal entity.",
+    );
+
+    return Promise.all(
+      lines.map(async (line) => {
+        const transactionDebit = BigInt(line.debitAmountMinor ?? 0);
+        const transactionCredit = BigInt(line.creditAmountMinor ?? 0);
+
+        if (
+          (transactionDebit === 0n && transactionCredit === 0n) ||
+          (transactionDebit > 0n && transactionCredit > 0n)
+        ) {
+          throw new BadRequestException(
+            "Each journal line must have either a debit or a credit amount, but not both.",
+          );
+        }
+
+        const preparedAmount = await this.prepareJournalLineAmount(
+          legalEntity.baseCurrency,
+          (line.currency ?? legalEntity.baseCurrency).toUpperCase(),
+          effectiveDate,
+          transactionDebit > 0n ? transactionDebit : transactionCredit,
+          tenantId,
+        );
+
+        return {
+          accountId: line.accountId,
+          debit: transactionDebit > 0n ? preparedAmount.baseAmount : 0n,
+          credit: transactionCredit > 0n ? preparedAmount.baseAmount : 0n,
+          transactionDebit,
+          transactionCredit,
+          currency: preparedAmount.currency,
+          fxRate: preparedAmount.fxRate,
+          description: line.description?.trim() ?? null,
+        } satisfies PreparedJournalLine;
+      }),
+    );
+  }
+
   private async prepareJournalLineAmount(
     entityBaseCurrency: string,
     lineCurrency: string,
     effectiveDate: Date,
     transactionAmount: bigint,
+    tenantId = this.requireTenantId(),
   ) {
     const normalizedCurrency = lineCurrency.toUpperCase();
     const fxRate =
       normalizedCurrency === entityBaseCurrency
         ? new Prisma.Decimal(1)
         : await this.fxRatesService.getRate({
-            tenantId: this.requireTenantId(),
+            tenantId,
             baseCurrency: normalizedCurrency,
             targetCurrency: entityBaseCurrency.toUpperCase(),
             effectiveDate,
@@ -813,7 +1056,10 @@ export class FinanceService {
   }
 
   private ensureEntryEditable(status: JournalEntryStatus) {
-    if (status === JournalEntryStatus.POSTED || status === JournalEntryStatus.REVERSED) {
+    if (
+      status === JournalEntryStatus.POSTED ||
+      status === JournalEntryStatus.REVERSED
+    ) {
       throw new PostedEntryImmutableException();
     }
   }
@@ -827,6 +1073,7 @@ export class FinanceService {
   private async createJournalEntryRecord(
     db: TenantDb,
     params: {
+      tenantId?: string;
       legalEntityId: string;
       periodId: string;
       date: Date;
@@ -840,23 +1087,23 @@ export class FinanceService {
     },
   ) {
     return db.journalEntry.create({
-        data: {
-          tenantId: this.requireTenantId(),
-          legalEntityId: params.legalEntityId,
-          periodId: params.periodId,
-          date: params.date,
+      data: {
+        tenantId: params.tenantId ?? this.requireTenantId(),
+        legalEntityId: params.legalEntityId,
+        periodId: params.periodId,
+        date: params.date,
         description: params.description,
         status: params.status,
         entryNumber: params.entryNumber,
         postedAt: params.postedAt,
         postedBy: params.postedBy,
         originalEntryId: params.originalEntryId,
-          lines: {
-            create: params.lines.map((line) => ({
-              tenantId: this.requireTenantId(),
-              accountId: line.accountId,
-              debit: line.debit,
-              credit: line.credit,
+        lines: {
+          create: params.lines.map((line) => ({
+            tenantId: params.tenantId ?? this.requireTenantId(),
+            accountId: line.accountId,
+            debit: line.debit,
+            credit: line.credit,
             transactionDebit: line.transactionDebit,
             transactionCredit: line.transactionCredit,
             currency: line.currency,
@@ -879,18 +1126,20 @@ export class FinanceService {
     });
   }
 
-  private async withTenantTransaction<T>(callback: (db: TenantDb) => Promise<T>) {
+  private async withTenantTransaction<T>(
+    callback: (db: TenantDb) => Promise<T>,
+  ) {
     return this.prisma.$transaction(async (tx) => {
       return callback(tx);
     });
   }
 
   private requireTenantId() {
-    const tenantId = this.cls.get('tenantId');
+    const tenantId = this.cls.get("tenantId");
 
-    if (!tenantId || tenantId === '*') {
+    if (!tenantId || tenantId === "*") {
       throw new ForbiddenException(
-        'Finance endpoints require a tenant-scoped request context.',
+        "Finance endpoints require a tenant-scoped request context.",
       );
     }
     return tenantId;
@@ -904,44 +1153,56 @@ export class FinanceService {
       },
     });
     if (!legalEntity) {
-      throw new NotFoundException('Legal entity not found.');
+      throw new NotFoundException("Legal entity not found.");
     }
     return legalEntity;
   }
 
-  private async getLegalEntityOrThrow(db: TenantDb, legalEntityId: string) {
+  private async getLegalEntityOrThrow(
+    db: TenantDb,
+    legalEntityId: string,
+    tenantId = this.requireTenantId(),
+  ) {
     const legalEntity = await db.legalEntity.findFirst({
       where: {
         id: legalEntityId,
-        tenantId: this.requireTenantId(),
+        tenantId,
         deletedAt: null,
       },
     });
     if (!legalEntity) {
-      throw new NotFoundException('Legal entity not found.');
+      throw new NotFoundException("Legal entity not found.");
     }
     return legalEntity;
   }
 
-  private async getPeriodOrThrow(db: TenantDb, periodId: string) {
+  private async getPeriodOrThrow(
+    db: TenantDb,
+    periodId: string,
+    tenantId = this.requireTenantId(),
+  ) {
     const period = await db.fiscalPeriod.findFirst({
       where: {
         id: periodId,
-        tenantId: this.requireTenantId(),
+        tenantId,
         deletedAt: null,
       },
     });
     if (!period) {
-      throw new NotFoundException('Fiscal period not found.');
+      throw new NotFoundException("Fiscal period not found.");
     }
     return period;
   }
 
-  private async getAccountMap(db: TenantDb, accountIds: string[]) {
+  private async getAccountMap(
+    db: TenantDb,
+    accountIds: string[],
+    tenantId = this.requireTenantId(),
+  ) {
     const ids = [...new Set(accountIds)];
     const accounts = await db.account.findMany({
       where: {
-        tenantId: this.requireTenantId(),
+        tenantId,
         deletedAt: null,
         id: {
           in: ids,
@@ -950,7 +1211,7 @@ export class FinanceService {
     });
 
     if (accounts.length !== ids.length) {
-      throw new NotFoundException('One or more accounts could not be found.');
+      throw new NotFoundException("One or more accounts could not be found.");
     }
 
     return new Map(accounts.map((account) => [account.id, account]));
@@ -981,7 +1242,7 @@ export class FinanceService {
   }
 
   private createEntryNumber(prefix: string) {
-    return `${prefix}-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.random()
+    return `${prefix}-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.random()
       .toString(36)
       .slice(2, 8)
       .toUpperCase()}`;

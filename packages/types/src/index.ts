@@ -3,3 +3,4 @@ export * from "./enums";
 export * from "./apar";
 export * from "./finance";
 export * from "./hr";
+export * from "./payroll";

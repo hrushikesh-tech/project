@@ -28,7 +28,10 @@ export type {
   LeaveRequest,
   LeaveBalance,
   Attendance,
+  SalaryStructure,
+  SalaryComponent,
   PayrollRun,
+  PayrollResult,
   Payslip,
   TaxSlab,
   Vendor,
@@ -60,6 +63,11 @@ export {
   EmployeeLifecycleException,
   InsufficientLeaveBalanceException,
   InvalidLeaveTransitionException,
+  InvalidPayrollRunScopeException,
+  MissingSalaryStructureException,
+  UnsupportedTaxRegimeException,
+  PayrollCompensationFailureException,
+  PayslipGenerationFailureException,
 } from "@amdox/types";
 
 export interface Customer {

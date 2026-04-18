@@ -11,7 +11,8 @@
     "test:integration:raw": "node --test --test-isolation=none test/integration/*.test.mjs",
     "test:unit": "pnpm run build && pnpm run test:unit:raw",
     "test:integration": "pnpm run build && pnpm run test:integration:raw",
-    "test:finance": "pnpm run build && pnpm run test:unit:raw && pnpm run test:integration:raw"
+    "test:finance": "pnpm run build && pnpm run test:unit:raw && pnpm run test:integration:raw",
+    "test:payroll:perf": "node test/perf/payroll.batch.perf.mjs"
   },
   "dependencies": {
     "@amdox/db": "workspace:^",
@@ -37,6 +38,7 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pdfjs-dist": "^5.6.205",
+    "puppeteer": "^24.41.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "sharp": "^0.34.5",
