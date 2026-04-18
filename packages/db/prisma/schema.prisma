@@ -460,7 +460,7 @@ model Department {
   name      String
   code      String
   parentId  String?
-  headId    String?
+  headId    String?   @unique
   tenantId  String
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

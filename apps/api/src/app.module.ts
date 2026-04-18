@@ -1,16 +1,17 @@
-import { Module } from '@nestjs/common';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';
-import { ClsModule } from 'nestjs-cls';
-import { PrismaModule } from './prisma/prisma.module';
-import { AuthModule } from './auth/auth.module';
-import { HealthModule } from './health/health.module';
-import { FinanceModule } from './finance/finance.module';
-import { ApArModule } from './ap-ar/ap-ar.module';
-import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
-import { RolesGuard } from './common/guards/roles.guard';
-import { TenantGuard } from './common/guards/tenant.guard';
-import { AuditInterceptor } from './common/interceptors/audit.interceptor';
+import { Module } from "@nestjs/common";
+import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
+import { ConfigModule } from "@nestjs/config";
+import { ClsModule } from "nestjs-cls";
+import { PrismaModule } from "./prisma/prisma.module";
+import { AuthModule } from "./auth/auth.module";
+import { HealthModule } from "./health/health.module";
+import { FinanceModule } from "./finance/finance.module";
+import { ApArModule } from "./ap-ar/ap-ar.module";
+import { HrModule } from "./hr/hr.module";
+import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
+import { RolesGuard } from "./common/guards/roles.guard";
+import { TenantGuard } from "./common/guards/tenant.guard";
+import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AuditInterceptor } from './common/interceptors/audit.interceptor';
     HealthModule,
     FinanceModule,
     ApArModule,
+    HrModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
