@@ -6,3 +6,4 @@ export * from "./finance";
 export * from "./hr";
 export * from "./payroll";
 export * from "./supply-chain";
+export * from "./bi";

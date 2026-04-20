@@ -1268,20 +1268,26 @@ model ForecastModel {
 model Dashboard {
   id        String    @id @default(cuid())
   title     String
+  description String?
   ownerId   String
   isPublic  Boolean   @default(false)
   layout    Json?
+  defaultFilters Json?
   tenantId  String
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   // Relations
-  owner   User     @relation(fields: [ownerId], references: [id])
-  widgets Widget[]
+  owner          User             @relation(fields: [ownerId], references: [id])
+  widgets        Widget[]
+  reportSchedules ReportSchedule[]
+  reportRuns     ReportRun[]
 
   @@index([tenantId])
   @@index([ownerId])
+  @@index([tenantId, ownerId, deletedAt])
+  @@index([tenantId, isPublic, deletedAt])
 }
 
 model Widget {
@@ -1292,6 +1298,8 @@ model Widget {
   metricKey   String
   config      Json?
   position    Json
+  refreshEnabled Boolean @default(true)
+  sortOrder   Int        @default(0)
   tenantId    String
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -1302,6 +1310,58 @@ model Widget {
 
   @@index([tenantId])
   @@index([dashboardId])
+  @@index([dashboardId, sortOrder])
+}
+
+model ReportSchedule {
+  id             String    @id @default(cuid())
+  dashboardId    String
+  title          String
+  cronExpression String
+  timezone       String    @default("UTC")
+  recipients     Json
+  formats        String[]
+  isEnabled      Boolean   @default(true)
+  lastRunAt      DateTime?
+  nextRunAt      DateTime?
+  createdById    String?
+  tenantId       String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  dashboard Dashboard   @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  runs      ReportRun[]
+
+  @@index([tenantId])
+  @@index([dashboardId])
+  @@index([tenantId, isEnabled, deletedAt])
+}
+
+model ReportRun {
+  id               String    @id @default(cuid())
+  reportScheduleId String?
+  dashboardId      String
+  status           String    @default("PENDING")
+  startedAt        DateTime?
+  completedAt      DateTime?
+  snapshot         Json?
+  artifact         Json?
+  deliveryStatus   String    @default("PENDING")
+  failureReason    String?
+  triggeredBy      String?
+  tenantId         String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  reportSchedule ReportSchedule? @relation(fields: [reportScheduleId], references: [id], onDelete: SetNull)
+  dashboard      Dashboard       @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([dashboardId])
+  @@index([reportScheduleId])
+  @@index([tenantId, status, createdAt])
 }
 
 // =============================================================================

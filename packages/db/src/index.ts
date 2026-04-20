@@ -25,6 +25,10 @@ export {
   InsufficientStockException,
   MissingReplenishmentConfiguration,
   AmbiguousReplenishmentConfiguration,
+  UnsupportedMetricKey,
+  InvalidWidgetConfiguration,
+  DashboardAccessDenied,
+  ReportScheduleExecutionFailed,
 } from "@amdox/types";
 
 export interface Customer {
