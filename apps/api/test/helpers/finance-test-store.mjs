@@ -5,6 +5,7 @@ const { Prisma } = require('@amdox/db');
 const { JournalEntryStatus } = require('@amdox/types');
 
 export function createFinanceHarness({ tenantId = 'tenant-1' } = {}) {
+  const clsState = new Map([['tenantId', tenantId]]);
   const state = {
     tenants: [{ id: tenantId }],
     legalEntities: [],
@@ -564,7 +565,11 @@ export function createFinanceHarness({ tenantId = 'tenant-1' } = {}) {
     prisma: scoped,
     cls: {
       get(key) {
-        return key === 'tenantId' ? tenantId : undefined;
+        return clsState.get(key);
+      },
+      set(key, value) {
+        clsState.set(key, value);
+        return value;
       },
     },
     configService: {

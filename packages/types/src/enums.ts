@@ -115,6 +115,12 @@ export enum VendorStatus {
   BLACKLISTED = "BLACKLISTED",
 }
 
+// Inventory Movement Types
+export enum InventoryMovementType {
+  RECEIPT = "RECEIPT",
+  ISSUE = "ISSUE",
+}
+
 // Attendance Status
 export enum AttendanceStatus {
   PRESENT = "PRESENT",

@@ -141,6 +141,8 @@ model LegalEntity {
   invoices            Invoice[]
   purchaseOrders      PurchaseOrder[]
   goodsReceipts       GoodsReceipt[]
+  replenishmentSettings ProductReplenishmentSetting[]
+  inventoryMovements  InventoryMovement[]
   salaryStructures    SalaryStructure[]
   payrollRuns         PayrollRun[]
   outgoingTransfers   IntercompanyTransfer[] @relation("IntercompanyFromEntity")
@@ -825,6 +827,7 @@ model Vendor {
   payablesAccount Account?         @relation("VendorPayablesAccount", fields: [payablesAccountId], references: [id], onDelete: SetNull)
   purchaseOrders PurchaseOrder[]
   invoices       Invoice[]
+  replenishmentSettings ProductReplenishmentSetting[]
 
   @@unique([tenantId, legalEntityId, code])
   @@index([tenantId])
@@ -842,7 +845,13 @@ model PurchaseOrder {
   totalAmount      BigInt    @default(0)
   currency         String    @default("INR")
   expectedDelivery DateTime?
+  submittedAt      DateTime?
   approvedBy       String?
+  approvedAt       DateTime?
+  rejectedAt       DateTime?
+  rejectedReason   String?
+  sentToVendorAt   DateTime?
+  closedAt         DateTime?
   tenantId         String
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -853,6 +862,7 @@ model PurchaseOrder {
   legalEntity   LegalEntity         @relation(fields: [legalEntityId], references: [id], onDelete: Cascade)
   lines         PurchaseOrderLine[]
   goodsReceipts GoodsReceipt[]
+  inventoryMovements InventoryMovement[]
   threeWayMatch ThreeWayMatch[]
   invoices      Invoice[]
 
@@ -901,8 +911,10 @@ model Product {
 
   // Relations
   purchaseOrderLines  PurchaseOrderLine[]
+  replenishmentSettings ProductReplenishmentSetting[]
   inventoryItems      InventoryItem[]
   costLayers          CostLayer[]
+  inventoryMovements  InventoryMovement[]
   forecastPredictions ForecastPrediction[]
   forecastModels      ForecastModel[]
 
@@ -929,6 +941,7 @@ model InventoryItem {
   @@index([tenantId])
   @@index([productId])
   @@index([warehouseId])
+  @@index([tenantId, productId, warehouseId])
 }
 
 model Warehouse {
@@ -942,8 +955,11 @@ model Warehouse {
   deletedAt DateTime?
 
   // Relations
-  inventoryItems InventoryItem[]
-  costLayers     CostLayer[]
+  inventoryItems      InventoryItem[]
+  costLayers          CostLayer[]
+  goodsReceipts       GoodsReceipt[]
+  inventoryMovements InventoryMovement[]
+  forecastPredictions ForecastPrediction[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -965,16 +981,19 @@ model CostLayer {
   // Relations
   product   Product   @relation(fields: [productId], references: [id])
   warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  inventoryMovements InventoryMovement[]
 
   @@index([tenantId])
   @@index([productId])
   @@index([warehouseId])
+  @@index([tenantId, productId, warehouseId, receivedAt])
 }
 
 model GoodsReceipt {
   id              String    @id @default(cuid())
   purchaseOrderId String
   legalEntityId   String
+  warehouseId     String
   receivedDate    DateTime  @default(now())
   receivedBy      String
   tenantId        String
@@ -985,12 +1004,15 @@ model GoodsReceipt {
   // Relations
   purchaseOrder PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id])
   legalEntity   LegalEntity        @relation(fields: [legalEntityId], references: [id], onDelete: Cascade)
+  warehouse     Warehouse          @relation(fields: [warehouseId], references: [id])
   lines         GoodsReceiptLine[]
+  inventoryMovements InventoryMovement[]
   threeWayMatch ThreeWayMatch[]
 
   @@index([tenantId])
   @@index([purchaseOrderId])
   @@index([legalEntityId])
+  @@index([warehouseId])
 }
 
 model GoodsReceiptLine {
@@ -1010,6 +1032,70 @@ model GoodsReceiptLine {
   @@index([tenantId])
   @@index([goodsReceiptId])
   @@index([purchaseOrderLineId])
+}
+
+model ProductReplenishmentSetting {
+  id                   String    @id @default(cuid())
+  productId            String
+  legalEntityId        String
+  vendorId             String
+  reorderQuantity      Decimal
+  isAutoReorderEnabled Boolean   @default(true)
+  tenantId             String
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  deletedAt            DateTime?
+
+  // Relations
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  legalEntity LegalEntity @relation(fields: [legalEntityId], references: [id], onDelete: Cascade)
+  vendor      Vendor      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, productId, legalEntityId])
+  @@index([tenantId])
+  @@index([productId])
+  @@index([vendorId])
+  @@index([legalEntityId])
+  @@index([tenantId, productId, isAutoReorderEnabled])
+}
+
+model InventoryMovement {
+  id              String    @id @default(cuid())
+  movementType    String
+  productId       String
+  warehouseId     String
+  legalEntityId   String?
+  costLayerId     String?
+  goodsReceiptId  String?
+  purchaseOrderId String?
+  quantity        Decimal
+  unitCost        BigInt?
+  referenceType   String?
+  referenceId     String?
+  notes           String?
+  performedBy     String?
+  movedAt         DateTime  @default(now())
+  tenantId        String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  // Relations
+  product       Product       @relation(fields: [productId], references: [id])
+  warehouse     Warehouse     @relation(fields: [warehouseId], references: [id])
+  legalEntity   LegalEntity?  @relation(fields: [legalEntityId], references: [id], onDelete: SetNull)
+  costLayer     CostLayer?    @relation(fields: [costLayerId], references: [id], onDelete: SetNull)
+  goodsReceipt  GoodsReceipt? @relation(fields: [goodsReceiptId], references: [id], onDelete: SetNull)
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([productId])
+  @@index([warehouseId])
+  @@index([legalEntityId])
+  @@index([costLayerId])
+  @@index([goodsReceiptId])
+  @@index([purchaseOrderId])
+  @@index([tenantId, productId, warehouseId, movedAt])
 }
 
 // =============================================================================
@@ -1123,38 +1209,56 @@ model ForecastPrediction {
   modelType       String
   modelVersion    String?
   mape            Decimal?
+  forecastModelId String?
+  generatedAt     DateTime  @default(now())
+  horizonDay      Int?
   tenantId        String
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
 
   // Relations
-  product Product @relation(fields: [productId], references: [id])
+  product       Product        @relation(fields: [productId], references: [id])
+  warehouse     Warehouse?     @relation(fields: [warehouseId], references: [id])
+  forecastModel ForecastModel? @relation(fields: [forecastModelId], references: [id])
 
   @@index([tenantId])
   @@index([tenantId, forecastDate])
   @@index([productId])
+  @@index([warehouseId])
+  @@index([forecastModelId])
+  @@index([tenantId, productId, forecastDate])
 }
 
 model ForecastModel {
-  id              String    @id @default(cuid())
-  productId       String
-  modelType       String
-  version         String
-  mape            Decimal
-  trainedAt       DateTime
-  isActive        Boolean   @default(false)
-  hyperparameters Json?
-  tenantId        String
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  deletedAt       DateTime?
+  id                  String    @id @default(cuid())
+  productId           String
+  modelType           String
+  version             String
+  mape                Decimal
+  trainedAt           DateTime
+  trainingWindowStart DateTime?
+  trainingWindowEnd   DateTime?
+  dataPoints          Int?
+  artifactUri         String?
+  promotedAt          DateTime?
+  isActive            Boolean   @default(false)
+  hyperparameters     Json?
+  metrics             Json?
+  tenantId            String
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
 
   // Relations
-  product Product @relation(fields: [productId], references: [id])
+  product     Product              @relation(fields: [productId], references: [id])
+  predictions ForecastPrediction[]
 
   @@index([tenantId])
   @@index([productId])
+  @@index([tenantId, productId, isActive])
+  @@index([productId, modelType])
+  @@index([tenantId, productId, modelType, trainedAt])
 }
 
 // =============================================================================

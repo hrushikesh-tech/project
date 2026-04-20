@@ -1,0 +1,43 @@
+import { Module } from "@nestjs/common";
+import { APP_FILTER } from "@nestjs/core";
+import { BullModule } from "@nestjs/bullmq";
+import { SupplyChainController } from "./supply-chain.controller";
+import { SupplyChainService } from "./supply-chain.service";
+import { SupplyChainExceptionFilter } from "./supply-chain-exception.filter";
+import { GoodsReceiptService } from "./receiving/goods-receipt.service";
+import { FifoInventoryService } from "./inventory/fifo-inventory.service";
+import { ReorderAutomationService } from "./reorder/reorder-automation.service";
+import {
+  SUPPLY_CHAIN_QUEUE,
+  SupplyChainQueue,
+} from "./queue/supply-chain.queue";
+import { SupplyChainProcessor } from "./queue/supply-chain.processor";
+
+@Module({
+  imports: [
+    BullModule.registerQueue({
+      name: SUPPLY_CHAIN_QUEUE,
+    }),
+  ],
+  controllers: [SupplyChainController],
+  providers: [
+    SupplyChainService,
+    GoodsReceiptService,
+    FifoInventoryService,
+    ReorderAutomationService,
+    SupplyChainQueue,
+    SupplyChainProcessor,
+    {
+      provide: APP_FILTER,
+      useClass: SupplyChainExceptionFilter,
+    },
+  ],
+  exports: [
+    SupplyChainService,
+    GoodsReceiptService,
+    FifoInventoryService,
+    ReorderAutomationService,
+    SupplyChainQueue,
+  ],
+})
+export class SupplyChainModule {}

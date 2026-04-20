@@ -9,6 +9,8 @@ import { FinanceModule } from "./finance/finance.module";
 import { ApArModule } from "./ap-ar/ap-ar.module";
 import { HrModule } from "./hr/hr.module";
 import { PayrollModule } from "./payroll/payroll.module";
+import { SupplyChainModule } from "./supply-chain/supply-chain.module";
+import { ForecastingModule } from "./forecasting/forecasting.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { RolesGuard } from "./common/guards/roles.guard";
 import { TenantGuard } from "./common/guards/tenant.guard";
@@ -28,6 +30,8 @@ import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
     ApArModule,
     HrModule,
     PayrollModule,
+    SupplyChainModule,
+    ForecastingModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

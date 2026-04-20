@@ -1,10 +1,15 @@
-import { Injectable, Logger, OnApplicationShutdown, OnModuleDestroy } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Prisma } from '@amdox/db';
-import Redis from 'ioredis';
-import { MissingFxRateException } from '@amdox/types';
-import { Cron, CronExpression } from '../common/schedule/schedule';
-import { PrismaService } from '../prisma/prisma.service';
+import {
+  Injectable,
+  Logger,
+  OnApplicationShutdown,
+  OnModuleDestroy,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { Prisma } from "@amdox/db";
+import Redis from "ioredis";
+import { MissingFxRateException } from "@amdox/types";
+import { Cron, CronExpression } from "../common/schedule/schedule";
+import { PrismaService } from "../prisma/prisma.service";
 
 type FxRateRequest = {
   tenantId: string;
@@ -34,8 +39,14 @@ export class FxRatesService implements OnModuleDestroy, OnApplicationShutdown {
       return;
     }
 
-    const bases = this.readCurrencyList('OPENEXCHANGE_BASE_CURRENCIES', ['USD']);
-    const targets = this.readCurrencyList('OPENEXCHANGE_TARGET_CURRENCIES', ['INR', 'USD', 'EUR']);
+    const bases = this.readCurrencyList("OPENEXCHANGE_BASE_CURRENCIES", [
+      "USD",
+    ]);
+    const targets = this.readCurrencyList("OPENEXCHANGE_TARGET_CURRENCIES", [
+      "INR",
+      "USD",
+      "EUR",
+    ]);
 
     for (const tenant of tenants) {
       for (const baseCurrency of bases) {
@@ -101,10 +112,14 @@ export class FxRatesService implements OnModuleDestroy, OnApplicationShutdown {
     });
   }
 
-  private async fetchAndPersistRate(request: FxRateRequest): Promise<Prisma.Decimal> {
-    const appId = this.configService.get<string>('OPENEXCHANGE_APP_ID');
+  private async fetchAndPersistRate(
+    request: FxRateRequest,
+  ): Promise<Prisma.Decimal> {
+    const appId = this.configService.get<string>("OPENEXCHANGE_APP_ID");
     if (!appId) {
-      throw new MissingFxRateException('OPENEXCHANGE_APP_ID is not configured.');
+      throw new MissingFxRateException(
+        "OPENEXCHANGE_APP_ID is not configured.",
+      );
     }
 
     const normalizedDate = this.normalizeDate(request.effectiveDate);
@@ -123,7 +138,7 @@ export class FxRatesService implements OnModuleDestroy, OnApplicationShutdown {
       base?: string;
     };
     const rate = this.deriveRate(
-      payload.base ?? 'USD',
+      payload.base ?? "USD",
       payload.rates ?? {},
       request.baseCurrency,
       request.targetCurrency,
@@ -140,7 +155,7 @@ export class FxRatesService implements OnModuleDestroy, OnApplicationShutdown {
       },
       update: {
         rate,
-        source: 'openexchangerates',
+        source: "openexchangerates",
       },
       create: {
         tenantId: request.tenantId,
@@ -148,7 +163,7 @@ export class FxRatesService implements OnModuleDestroy, OnApplicationShutdown {
         targetCurrency: request.targetCurrency,
         effectiveDate: normalizedDate,
         rate,
-        source: 'openexchangerates',
+        source: "openexchangerates",
       },
     });
 
@@ -182,9 +197,14 @@ export class FxRatesService implements OnModuleDestroy, OnApplicationShutdown {
       return new Prisma.Decimal(direct);
     }
 
-    const baseRate = requestedBaseCurrency === responseBaseCurrency ? 1 : responseRates[requestedBaseCurrency];
+    const baseRate =
+      requestedBaseCurrency === responseBaseCurrency
+        ? 1
+        : responseRates[requestedBaseCurrency];
     const targetRate =
-      requestedTargetCurrency === responseBaseCurrency ? 1 : responseRates[requestedTargetCurrency];
+      requestedTargetCurrency === responseBaseCurrency
+        ? 1
+        : responseRates[requestedTargetCurrency];
 
     if (!baseRate || !targetRate) {
       throw new MissingFxRateException(
@@ -202,13 +222,15 @@ export class FxRatesService implements OnModuleDestroy, OnApplicationShutdown {
     }
 
     return value
-      .split(',')
+      .split(",")
       .map((item) => item.trim().toUpperCase())
       .filter(Boolean);
   }
 
   private normalizeDate(value: Date): Date {
-    return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+    return new Date(
+      Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()),
+    );
   }
 
   private buildCacheKey(
@@ -239,7 +261,7 @@ export class FxRatesService implements OnModuleDestroy, OnApplicationShutdown {
       if (!redis) {
         return;
       }
-      await redis.set(cacheKey, rate.toString(), 'EX', 60 * 60 * 24);
+      await redis.set(cacheKey, rate.toString(), "EX", 60 * 60 * 24);
     } catch {
       // Cache is best-effort only.
     }
@@ -251,11 +273,11 @@ export class FxRatesService implements OnModuleDestroy, OnApplicationShutdown {
     }
 
     const redis = this.getRedisClient();
-    if (redis.status === 'ready') {
+    if (redis.status === "ready") {
       return redis;
     }
 
-    if (redis.status === 'wait') {
+    if (redis.status === "wait") {
       try {
         await redis.connect();
         return redis;
@@ -266,7 +288,7 @@ export class FxRatesService implements OnModuleDestroy, OnApplicationShutdown {
       }
     }
 
-    return redis.status === 'ready' ? redis : null;
+    return redis.status === "ready" ? redis : null;
   }
 
   async onModuleDestroy() {
@@ -278,7 +300,7 @@ export class FxRatesService implements OnModuleDestroy, OnApplicationShutdown {
   }
 
   private async shutdownRedis() {
-    if (!this.redis || this.redis.status === 'end') {
+    if (!this.redis || this.redis.status === "end") {
       return;
     }
 
@@ -294,24 +316,24 @@ export class FxRatesService implements OnModuleDestroy, OnApplicationShutdown {
       return this.redis;
     }
 
-    const redisUrl = this.configService.get<string>('REDIS_URL');
+    const redisUrl = this.configService.get<string>("REDIS_URL");
     this.redis = redisUrl
       ? new Redis(redisUrl, {
           lazyConnect: true,
-          maxRetriesPerRequest: 1,
+          maxRetriesPerRequest: null,
           enableOfflineQueue: false,
           retryStrategy: () => null,
         })
       : new Redis({
-          host: this.configService.get<string>('REDIS_HOST', 'localhost'),
-          port: this.configService.get<number>('REDIS_PORT', 6379),
+          host: this.configService.get<string>("REDIS_HOST", "localhost"),
+          port: this.configService.get<number>("REDIS_PORT", 6379),
           lazyConnect: true,
-          maxRetriesPerRequest: 1,
+          maxRetriesPerRequest: null,
           enableOfflineQueue: false,
           retryStrategy: () => null,
         });
 
-    this.redis.on('error', () => {
+    this.redis.on("error", () => {
       this.redisDisabled = true;
     });
 

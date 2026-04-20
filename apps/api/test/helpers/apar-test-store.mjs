@@ -12,6 +12,7 @@ export function createAparHarness(options = {}) {
     users: [],
     vendors: [],
     customers: [],
+    warehouses: [],
     purchaseOrders: [],
     purchaseOrderLines: [],
     goodsReceipts: [],
@@ -64,6 +65,18 @@ export function createAparHarness(options = {}) {
     return insertCustomer({ legalEntityId: ensureLegalEntityId(overrides) }).id;
   };
 
+  const ensureWarehouseId = (overrides = {}) => {
+    if (overrides.warehouseId) {
+      return overrides.warehouseId;
+    }
+
+    if (state.warehouses[0]?.id) {
+      return state.warehouses[0].id;
+    }
+
+    return insertWarehouse().id;
+  };
+
   const insertVendor = (overrides = {}) => {
     const record = {
       id: nextId('vendor'),
@@ -107,6 +120,22 @@ export function createAparHarness(options = {}) {
       ...overrides,
     };
     state.customers.push(record);
+    return clone(record);
+  };
+
+  const insertWarehouse = (overrides = {}) => {
+    const record = {
+      id: nextId('warehouse'),
+      tenantId: state.tenants[0]?.id ?? options.tenantId ?? 'tenant-1',
+      name: overrides.name ?? `Warehouse ${sequence}`,
+      code: overrides.code ?? `WH-${sequence}`,
+      address: overrides.address ?? null,
+      createdAt: now(),
+      updatedAt: now(),
+      deletedAt: null,
+      ...overrides,
+    };
+    state.warehouses.push(record);
     return clone(record);
   };
 
@@ -165,6 +194,7 @@ export function createAparHarness(options = {}) {
       tenantId: state.tenants[0]?.id ?? options.tenantId ?? 'tenant-1',
       purchaseOrderId,
       legalEntityId,
+      warehouseId: ensureWarehouseId(overrides),
       receivedDate: overrides.receivedDate ?? now(),
       receivedBy: overrides.receivedBy ?? 'warehouse-user',
       createdAt: now(),
@@ -400,6 +430,11 @@ export function createAparHarness(options = {}) {
     if (include.legalEntity) {
       output.legalEntity = clone(
         state.legalEntities.find((item) => item.id === record.legalEntityId) ?? null,
+      );
+    }
+    if (include.warehouse) {
+      output.warehouse = clone(
+        state.warehouses.find((item) => item.id === record.warehouseId) ?? null,
       );
     }
     return output;
@@ -641,6 +676,7 @@ export function createAparHarness(options = {}) {
     insertUser,
     insertVendor,
     insertCustomer,
+    insertWarehouse,
     insertPurchaseOrder,
     insertGoodsReceipt,
     insertInvoice,
