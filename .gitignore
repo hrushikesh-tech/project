@@ -56,4 +56,5 @@ Thumbs.db
 __pycache__/
 *.pyc
 .pytest_cache/
+apps/ml-service/.venv/
 apps/api/scratch/
