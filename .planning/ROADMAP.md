@@ -122,7 +122,7 @@
 
 ---
 
-### Phase 8: AI/ML Demand Forecasting
+### Phase 8: AI/ML Demand Forecasting [COMPLETED]
 
 **Goal:** Build Python FastAPI ML microservice with Prophet and LSTM models, MAPE quality gating, and weekly automated retraining.
 **Requirements:** ML-01, ML-02, ML-03, ML-04, ML-05
@@ -139,7 +139,7 @@
 
 ---
 
-### Phase 9: Business Intelligence Dashboard
+### Phase 9: Business Intelligence Dashboard [COMPLETED]
 
 **Goal:** Implement dashboard builder backend with widget configuration, 8 pre-built metrics, SSE real-time refresh, and scheduled report generation.
 **Requirements:** BI-01, BI-02, BI-03, BI-04, BI-05

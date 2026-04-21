@@ -1,15 +1,15 @@
 ---
 phase: 09
 slug: business-intelligence-dashboard
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-21
 ---
 
 # Phase 09 - Validation Strategy
 
-> Per-phase validation contract for feedback sampling during execution.
+> Per-phase validation contract and final verification record for execution closeout.
 
 ---
 
@@ -36,26 +36,26 @@ created: 2026-04-21
 
 ## Per-Task Verification Map
 
-| Task ID  | Plan | Wave | Requirement         | Threat Ref | Secure Behavior                                                          | Test Type   | Automated Command                                                    | File Exists | Status     |
-| -------- | ---- | ---- | ------------------- | ---------- | ------------------------------------------------------------------------ | ----------- | -------------------------------------------------------------------- | ----------- | ---------- |
-| 09-01-01 | 01   | 1    | BI-01, BI-02, BI-05 | T-09-01    | BI schema evolves without losing tenant scoping or durable report state  | integration | `pnpm --filter @amdox/db generate && pnpm --filter @amdox/api build` | ❌ W0       | ⬜ pending |
-| 09-01-02 | 01   | 1    | BI-02, BI-04        | T-09-02    | Shared BI contracts reject unsupported widget and metric combinations    | unit        | `pnpm --filter @amdox/api run test:unit:raw`                         | ❌ W0       | ⬜ pending |
-| 09-02-01 | 02   | 2    | BI-01, BI-02        | T-09-03    | Dashboard CRUD stays tenant-safe and role-appropriate                    | integration | `pnpm --filter @amdox/api run test:integration:raw`                  | ❌ W0       | ⬜ pending |
-| 09-03-01 | 03   | 3    | BI-03, BI-04        | T-09-04    | Metric aggregators honor locked finance/HR/supply-chain/forecast rules   | unit        | `pnpm --filter @amdox/api run test:unit:raw`                         | ❌ W0       | ⬜ pending |
-| 09-03-02 | 03   | 3    | BI-03               | T-09-05    | SSE emits lightweight invalidation events instead of full datasets       | integration | `pnpm --filter @amdox/api run test:integration:raw`                  | ❌ W0       | ⬜ pending |
-| 09-04-01 | 04   | 4    | BI-05               | T-09-06    | Report scheduling persists run status and artifacts durably              | integration | `pnpm --filter @amdox/api run test:integration:raw`                  | ❌ W0       | ⬜ pending |
-| 09-04-02 | 04   | 4    | BI-05               | T-09-07    | Email/report delivery failures become operator-visible instead of silent | unit        | `pnpm --filter @amdox/api run test:unit:raw`                         | ❌ W0       | ⬜ pending |
+| Task ID  | Plan | Wave | Requirement         | Threat Ref | Secure Behavior                                                          | Test Type   | Automated Command                                   | File Exists | Status |
+| -------- | ---- | ---- | ------------------- | ---------- | ------------------------------------------------------------------------ | ----------- | --------------------------------------------------- | ----------- | ------ |
+| 09-01-01 | 01   | 1    | BI-01, BI-02, BI-05 | T-09-01    | BI schema evolves without losing tenant scoping or durable report state  | integration | `pnpm --filter @amdox/db db:push`                   | yes         | green  |
+| 09-01-02 | 01   | 1    | BI-02, BI-04        | T-09-02    | Shared BI contracts reject unsupported widget and metric combinations    | unit        | `pnpm --filter @amdox/api run test:unit:raw`        | yes         | green  |
+| 09-02-01 | 02   | 2    | BI-01, BI-02        | T-09-03    | Dashboard CRUD stays tenant-safe and role-appropriate                    | integration | `pnpm --filter @amdox/api run test:integration:raw` | yes         | green  |
+| 09-03-01 | 03   | 3    | BI-03, BI-04        | T-09-04    | Metric aggregators honor locked finance/HR/supply-chain/forecast rules   | unit        | `pnpm --filter @amdox/api run test:unit:raw`        | yes         | green  |
+| 09-03-02 | 03   | 3    | BI-03               | T-09-05    | SSE emits lightweight invalidation events instead of full datasets       | integration | `pnpm --filter @amdox/api run test:integration:raw` | yes         | green  |
+| 09-04-01 | 04   | 4    | BI-05               | T-09-06    | Report scheduling persists run status and artifacts durably              | integration | `pnpm --filter @amdox/api run test:integration:raw` | yes         | green  |
+| 09-04-02 | 04   | 4    | BI-05               | T-09-07    | Email/report delivery failures become operator-visible instead of silent | unit        | `pnpm --filter @amdox/api run test:unit:raw`        | yes         | green  |
 
-_Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky_
+_Status: pending | green | red | flaky_
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `apps/api/test/helpers/bi-test-store.mjs` — reusable dashboard, widget, schedule, and cross-domain BI fixtures
-- [ ] `apps/api/test/unit/bi.metrics.test.mjs` — fixed-metric aggregation coverage
-- [ ] `apps/api/test/integration/bi.api.test.mjs` — dashboard CRUD, widget config, and report scheduling API coverage
-- [ ] `apps/api/test/integration/bi.reports.test.mjs` — report run, artifact metadata, and delivery-path coverage
+- [x] `apps/api/test/helpers/bi-test-store.mjs` - reusable dashboard, widget, schedule, and cross-domain BI fixtures
+- [x] `apps/api/test/unit/bi.metrics.test.mjs` - fixed-metric aggregation coverage
+- [x] `apps/api/test/integration/bi.api.test.mjs` - dashboard CRUD, widget config, and report scheduling API coverage
+- [x] `apps/api/test/integration/bi.reports.test.mjs` - report run, artifact metadata, and delivery-path coverage
 
 ---
 
@@ -68,13 +68,36 @@ _Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky_
 
 ---
 
+## Validation Audit 2026-04-21
+
+| Metric     | Count |
+| ---------- | ----- |
+| Gaps found | 0     |
+| Resolved   | 0     |
+| Escalated  | 0     |
+
+### Evidence
+
+| Check                                               | Result                                                                                 |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `pnpm --filter @amdox/db db:push`                   | Passed; database already in sync with the Prisma schema                                |
+| `pnpm --filter @amdox/db generate`                  | Passed                                                                                 |
+| `pnpm --filter @amdox/types build`                  | Passed                                                                                 |
+| `pnpm --filter @amdox/api build`                    | Passed                                                                                 |
+| `pnpm --filter @amdox/api run test:unit:raw`        | Passed; 64/64 tests green                                                              |
+| `pnpm --filter @amdox/api run test:integration:raw` | Passed; 16/16 tests green                                                              |
+| SSE cadence/manual shape check                      | Passed; first `dashboard.refresh` event observed after ~30017ms                        |
+| PDF and Excel artifact readability                  | Passed; PDF header `%PDF`, workbook XML present, dashboard and widget content readable |
+
+---
+
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 90s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 90s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** complete
