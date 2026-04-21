@@ -1,10 +1,10 @@
 ---
 phase: 11
 validation_type: phase_plan
-status: draft
+status: execution_complete
 created_at: 2026-04-21
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 ---
 
 # Phase 11 Validation - Notification & Event Engine
@@ -55,15 +55,38 @@ Before substantial implementation begins, Phase 11 should establish these reusab
 
 These files provide the Nyquist-style baseline that lets the phase validate contract shape, API behavior, and engine semantics as code lands.
 
-## Planned Verification Commands
+## Verification Evidence
 
 - `pnpm --filter @amdox/db db:push`
 - `pnpm --filter @amdox/db generate`
 - `pnpm --filter @amdox/types build`
+- `pnpm --filter @amdox/db build`
 - `pnpm --filter @amdox/api build`
+- `node --test --test-isolation=none apps/api/test/unit/notifications.catalog.test.mjs`
+- `node --test --test-isolation=none apps/api/test/unit/notifications.delivery.test.mjs`
+- `node --test --test-isolation=none apps/api/test/integration/notifications.api.test.mjs`
+- `node --test --test-isolation=none apps/api/test/integration/notifications.engine.test.mjs`
 - `pnpm --filter @amdox/api run test:unit:raw`
 - `pnpm --filter @amdox/api run test:integration:raw`
 
+All commands above passed during execution. The only transient issue was the initial sandbox `EPERM` on `prisma db push`; rerunning the same command with elevated access succeeded and completed the schema sync.
+
+## Execution Outcome
+
+Phase 11 now has:
+
+- schema-backed retry bookkeeping on `OutboxEvent`
+- shared notification contracts and seeded event catalog coverage
+- reusable notification test harnesses
+- inbox, preference, template, and webhook configuration APIs
+- 5-second outbox polling, BullMQ delivery worker, and per-channel dispatch services
+- completed-phase event coverage for AP/AR, HR, Payroll, Supply Chain, BI, and Project Management
+
+## Residual Risks
+
+- SMS delivery is intentionally config-gated, so missing provider configuration results in durable `SKIPPED` channel evidence rather than live dispatch.
+- SMTP and outbound webhook delivery in production still depend on environment configuration and reachable infrastructure, even though the engine logic and retry behavior are fully covered in tests.
+
 ## Exit Condition
 
-Phase 11 planning is validation-complete when all planned tasks map cleanly to `NOTIF-01` through `NOTIF-06`, Wave 0 harness work is explicitly represented, and the final execution pass can record green evidence for build, unit, integration, and completed-phase event delivery behavior.
+Phase 11 execution is validation-complete: all planned tasks map cleanly to `NOTIF-01` through `NOTIF-06`, Wave 0 harness work is present, and green evidence exists for build, unit, integration, and completed-phase event delivery behavior.

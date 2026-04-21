@@ -32,6 +32,8 @@ export {
   CircularDependencyException,
   ProjectManagerValidationException,
   MilestoneTaskLinkException,
+  NotificationActorRequiredException,
+  NotificationAdminAccessException,
 } from "@amdox/types";
 
 export interface Customer {

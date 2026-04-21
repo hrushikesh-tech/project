@@ -1405,12 +1405,17 @@ model OutboxEvent {
   status      String    @default("PENDING")
   processedAt DateTime?
   retryCount  Int       @default(0)
+  nextAttemptAt DateTime?
+  processingStartedAt DateTime?
+  lastError   String?
+  deliveryState Json?
   tenantId    String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
   @@index([status, createdAt])
+  @@index([status, nextAttemptAt])
   @@index([tenantId])
 }
 
