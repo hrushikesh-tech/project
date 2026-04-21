@@ -29,6 +29,9 @@ export {
   InvalidWidgetConfiguration,
   DashboardAccessDenied,
   ReportScheduleExecutionFailed,
+  CircularDependencyException,
+  ProjectManagerValidationException,
+  MilestoneTaskLinkException,
 } from "@amdox/types";
 
 export interface Customer {

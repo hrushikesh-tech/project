@@ -4,35 +4,35 @@ import { createForecastHarness } from "./forecast-test-store.mjs";
 const require = createRequire(import.meta.url);
 const { Prisma } = require("@amdox/db");
 
-export function createBiHarness(options = {}) {
+export function createProjectManagementHarness(options = {}) {
   const base = createForecastHarness(options);
   const state = base.state;
   const tenantId = options.tenantId ?? state.tenants[0]?.id ?? "tenant-1";
 
   Object.assign(state, {
-    dashboards: state.dashboards ?? [],
-    widgets: state.widgets ?? [],
-    reportSchedules: state.reportSchedules ?? [],
-    reportRuns: state.reportRuns ?? [],
     departments: state.departments ?? [],
     employees: state.employees ?? [],
     leaveTypes: state.leaveTypes ?? [],
     leaveRequests: state.leaveRequests ?? [],
     projects: state.projects ?? [],
+    tasks: state.tasks ?? [],
+    taskDependencies: state.taskDependencies ?? [],
+    projectMilestones: state.projectMilestones ?? [],
     users: state.users ?? [],
     notifications: state.notifications ?? [],
     outboxEvents: state.outboxEvents ?? [],
   });
 
   let sequence = 1;
-  const nextId = (prefix) => `bi-${prefix}-${sequence++}`;
+  const nextId = (prefix) => `pm-${prefix}-${sequence++}`;
   const now = () => new Date();
   const clone = (value) => (value == null ? value : { ...value });
   const toDecimal = (value, fallback = "0") =>
     value instanceof Prisma.Decimal
       ? value
       : new Prisma.Decimal(String(value ?? fallback));
-  const toDate = (value) => (value instanceof Date ? value : value ? new Date(value) : null);
+  const toDate = (value) =>
+    value instanceof Date ? value : value ? new Date(value) : null;
 
   const matchesScalar = (actual, expected) => {
     if (expected === undefined) return true;
@@ -47,9 +47,18 @@ export function createBiHarness(options = {}) {
 
   const matches = (item, where = {}) => {
     if (!where) return true;
+    if (Array.isArray(where.AND)) {
+      return where.AND.every((clause) => matches(item, clause));
+    }
+    if (Array.isArray(where.OR)) {
+      return where.OR.some((clause) => matches(item, clause));
+    }
 
     return Object.entries(where).every(([key, expected]) => {
-      if (expected === undefined) return true;
+      if (key === "AND" || key === "OR" || expected === undefined) {
+        return true;
+      }
+
       const actual = item[key];
       if (expected && typeof expected === "object" && !Array.isArray(expected)) {
         if (expected.in) {
@@ -57,6 +66,9 @@ export function createBiHarness(options = {}) {
         }
         if (expected.not !== undefined) {
           return !matchesScalar(actual, expected.not);
+        }
+        if (expected.equals !== undefined) {
+          return matchesScalar(actual, expected.equals);
         }
         if (expected.gte !== undefined) {
           if (actual instanceof Date || expected.gte instanceof Date) {
@@ -72,6 +84,7 @@ export function createBiHarness(options = {}) {
         }
         return true;
       }
+
       return matchesScalar(actual, expected);
     });
   };
@@ -94,6 +107,11 @@ export function createBiHarness(options = {}) {
           rightValue instanceof Prisma.Decimal
         ) {
           result = toDecimal(leftValue).sub(toDecimal(rightValue)).toNumber();
+        } else if (
+          typeof leftValue === "number" ||
+          typeof rightValue === "number"
+        ) {
+          result = Number(leftValue ?? 0) - Number(rightValue ?? 0);
         } else {
           result = String(leftValue ?? "").localeCompare(String(rightValue ?? ""));
         }
@@ -102,6 +120,7 @@ export function createBiHarness(options = {}) {
           return direction === "desc" ? -result : result;
         }
       }
+
       return 0;
     });
   };
@@ -109,12 +128,12 @@ export function createBiHarness(options = {}) {
   const ensureUser = (overrides = {}) => {
     const record = {
       id: nextId("user"),
-      email: overrides.email ?? `bi-user-${sequence}@amdox.dev`,
-      firstName: overrides.firstName ?? "BI",
+      email: overrides.email ?? `pm-user-${sequence}@amdox.dev`,
+      firstName: overrides.firstName ?? "Project",
       lastName: overrides.lastName ?? "User",
-      keycloakId: overrides.keycloakId ?? `bi-keycloak-${sequence}`,
+      keycloakId: overrides.keycloakId ?? `pm-keycloak-${sequence}`,
       tenantId,
-      role: overrides.role ?? "tenant_admin",
+      role: overrides.role ?? "project_manager",
       isActive: overrides.isActive ?? true,
       lastLoginAt: null,
       createdAt: now(),
@@ -150,17 +169,17 @@ export function createBiHarness(options = {}) {
       id: nextId("employee"),
       employeeCode: overrides.employeeCode ?? `EMP-${sequence}`,
       userId: overrides.userId ?? null,
-      firstName: overrides.firstName ?? "Employee",
-      lastName: overrides.lastName ?? `${sequence}`,
+      firstName: overrides.firstName ?? "Project",
+      lastName: overrides.lastName ?? `Employee ${sequence}`,
       email: overrides.email ?? `employee-${sequence}@amdox.dev`,
       phone: overrides.phone ?? null,
       dateOfBirth: toDate(overrides.dateOfBirth),
-      departmentId,
-      managerId: overrides.managerId ?? null,
-      designationId: overrides.designationId ?? null,
-      status: overrides.status ?? "ACTIVE",
       hireDate: toDate(overrides.hireDate) ?? new Date("2026-01-01T00:00:00.000Z"),
       terminationDate: toDate(overrides.terminationDate),
+      status: overrides.status ?? "ACTIVE",
+      departmentId,
+      designationId: overrides.designationId ?? null,
+      managerId: overrides.managerId ?? null,
       tenantId,
       createdAt: now(),
       updatedAt: now(),
@@ -205,11 +224,11 @@ export function createBiHarness(options = {}) {
       submittedAt: toDate(overrides.submittedAt) ?? new Date("2026-04-01T00:00:00.000Z"),
       approvedBy: overrides.approvedBy ?? "hr-manager",
       approvedAt: toDate(overrides.approvedAt) ?? new Date("2026-04-02T00:00:00.000Z"),
-      rejectedAt: null,
-      cancelledAt: null,
-      rejectionReason: null,
-      cancelReason: null,
-      systemReason: null,
+      rejectedAt: toDate(overrides.rejectedAt),
+      cancelledAt: toDate(overrides.cancelledAt),
+      rejectionReason: overrides.rejectionReason ?? null,
+      cancelReason: overrides.cancelReason ?? null,
+      systemReason: overrides.systemReason ?? null,
       tenantId,
       createdAt: now(),
       updatedAt: now(),
@@ -220,14 +239,23 @@ export function createBiHarness(options = {}) {
     return clone(record);
   };
 
+  const ensureProjectManagerId = (overrides = {}) => {
+    if (overrides.managerId) {
+      return overrides.managerId;
+    }
+    if (state.employees[0]?.id) {
+      return state.employees[0].id;
+    }
+
+    const user = state.users[0] ?? ensureUser();
+    return ensureEmployee({
+      userId: user.id,
+      status: "ACTIVE",
+    }).id;
+  };
+
   const insertProject = (overrides = {}) => {
-    const managerId =
-      overrides.managerId ??
-      state.employees[0]?.id ??
-      ensureEmployee({
-        userId: state.users[0]?.id ?? ensureUser({ role: "project_manager" }).id,
-        status: "ACTIVE",
-      }).id;
+    const managerId = ensureProjectManagerId(overrides);
     const record = {
       id: nextId("project"),
       code: overrides.code ?? `PROJ-${sequence}`,
@@ -249,96 +277,78 @@ export function createBiHarness(options = {}) {
     return clone(record);
   };
 
-  const insertDashboard = (overrides = {}) => {
-    const ownerId = overrides.ownerId ?? state.users[0]?.id ?? ensureUser().id;
+  const insertProjectMilestone = (overrides = {}) => {
+    const projectId =
+      overrides.projectId ?? state.projects[0]?.id ?? insertProject().id;
     const record = {
-      id: nextId("dashboard"),
-      title: overrides.title ?? `Dashboard ${sequence}`,
+      id: nextId("milestone"),
+      projectId,
+      name: overrides.name ?? `Milestone ${sequence}`,
+      dueDate: toDate(overrides.dueDate) ?? new Date("2026-06-01T00:00:00.000Z"),
+      status: overrides.status ?? "PENDING",
+      completedAt: toDate(overrides.completedAt),
+      tenantId,
+      createdAt: now(),
+      updatedAt: now(),
+      deletedAt: null,
+      ...overrides,
+    };
+    state.projectMilestones.push(record);
+    return clone(record);
+  };
+
+  const insertTask = (overrides = {}) => {
+    const projectId =
+      overrides.projectId ?? state.projects[0]?.id ?? insertProject().id;
+    const record = {
+      id: nextId("task"),
+      projectId,
+      milestoneId: overrides.milestoneId ?? null,
+      name: overrides.name ?? `Task ${sequence}`,
       description: overrides.description ?? null,
-      ownerId,
-      isPublic: overrides.isPublic ?? false,
-      layout: overrides.layout ?? null,
-      defaultFilters: overrides.defaultFilters ?? null,
+      assigneeId: overrides.assigneeId ?? null,
+      status: overrides.status ?? "TODO",
+      priority: overrides.priority ?? "MEDIUM",
+      estimatedHours:
+        overrides.estimatedHours == null
+          ? null
+          : toDecimal(overrides.estimatedHours),
+      actualHours: toDecimal(overrides.actualHours ?? "0"),
+      startDate: toDate(overrides.startDate),
+      dueDate: toDate(overrides.dueDate),
+      completedAt: toDate(overrides.completedAt),
       tenantId,
       createdAt: now(),
       updatedAt: now(),
       deletedAt: null,
       ...overrides,
     };
-    state.dashboards.push(record);
+    if (record.estimatedHours != null) {
+      record.estimatedHours = toDecimal(record.estimatedHours);
+    }
+    record.actualHours = toDecimal(record.actualHours);
+    state.tasks.push(record);
     return clone(record);
   };
 
-  const insertWidget = (overrides = {}) => {
-    const dashboardId =
-      overrides.dashboardId ?? state.dashboards[0]?.id ?? insertDashboard().id;
+  const insertTaskDependency = (overrides = {}) => {
+    const taskId = overrides.taskId ?? state.tasks[0]?.id ?? insertTask().id;
+    const dependsOnTaskId =
+      overrides.dependsOnTaskId ??
+      state.tasks.find((task) => task.id !== taskId)?.id ??
+      insertTask().id;
     const record = {
-      id: nextId("widget"),
-      dashboardId,
-      type: overrides.type ?? "BAR_CHART",
-      title: overrides.title ?? "Revenue",
-      metricKey: overrides.metricKey ?? "revenue_by_month",
-      config: overrides.config ?? { filters: {} },
-      position: overrides.position ?? { x: 0, y: 0, w: 4, h: 3 },
-      refreshEnabled: overrides.refreshEnabled ?? true,
-      sortOrder: overrides.sortOrder ?? 0,
+      id: nextId("dependency"),
+      taskId,
+      dependsOnTaskId,
+      type: overrides.type ?? "FINISH_TO_START",
       tenantId,
       createdAt: now(),
       updatedAt: now(),
       deletedAt: null,
       ...overrides,
     };
-    state.widgets.push(record);
-    return clone(record);
-  };
-
-  const insertReportSchedule = (overrides = {}) => {
-    const dashboardId =
-      overrides.dashboardId ?? state.dashboards[0]?.id ?? insertDashboard().id;
-    const record = {
-      id: nextId("report-schedule"),
-      dashboardId,
-      title: overrides.title ?? "Weekly BI Report",
-      cronExpression: overrides.cronExpression ?? "0 2 * * 1",
-      timezone: overrides.timezone ?? "Asia/Calcutta",
-      recipients: overrides.recipients ?? ["ops@amdox.dev"],
-      formats: overrides.formats ?? ["PDF", "EXCEL"],
-      isEnabled: overrides.isEnabled ?? true,
-      lastRunAt: toDate(overrides.lastRunAt),
-      nextRunAt: toDate(overrides.nextRunAt),
-      createdById: overrides.createdById ?? state.users[0]?.id ?? ensureUser().id,
-      tenantId,
-      createdAt: now(),
-      updatedAt: now(),
-      deletedAt: null,
-      ...overrides,
-    };
-    state.reportSchedules.push(record);
-    return clone(record);
-  };
-
-  const insertReportRun = (overrides = {}) => {
-    const dashboardId =
-      overrides.dashboardId ?? state.dashboards[0]?.id ?? insertDashboard().id;
-    const record = {
-      id: nextId("report-run"),
-      reportScheduleId: overrides.reportScheduleId ?? null,
-      dashboardId,
-      status: overrides.status ?? "COMPLETED",
-      startedAt: toDate(overrides.startedAt) ?? now(),
-      completedAt: toDate(overrides.completedAt) ?? now(),
-      snapshot: overrides.snapshot ?? null,
-      artifact: overrides.artifact ?? null,
-      deliveryStatus: overrides.deliveryStatus ?? "DELIVERED",
-      failureReason: overrides.failureReason ?? null,
-      triggeredBy: overrides.triggeredBy ?? "system",
-      tenantId,
-      createdAt: now(),
-      updatedAt: now(),
-      deletedAt: null,
-      ...overrides,
-    };
-    state.reportRuns.push(record);
+    state.taskDependencies.push(record);
     return clone(record);
   };
 
@@ -347,12 +357,12 @@ export function createBiHarness(options = {}) {
     const record = {
       id: nextId("notification"),
       userId,
-      type: overrides.type ?? "bi.report.ready",
+      type: overrides.type ?? "project.budget.overrun",
       channel: overrides.channel ?? "IN_APP",
-      title: overrides.title ?? "BI report ready",
+      title: overrides.title ?? "Project budget alert",
       body: overrides.body ?? null,
       isRead: overrides.isRead ?? false,
-      readAt: null,
+      readAt: toDate(overrides.readAt),
       metadata: overrides.metadata ?? null,
       tenantId,
       createdAt: now(),
@@ -367,7 +377,7 @@ export function createBiHarness(options = {}) {
   const insertOutboxEvent = (overrides = {}) => {
     const record = {
       id: nextId("outbox"),
-      eventType: overrides.eventType ?? "bi.report.ready",
+      eventType: overrides.eventType ?? "project.budget.overrun",
       payload: overrides.payload ?? {},
       status: overrides.status ?? "PENDING",
       processedAt: toDate(overrides.processedAt),
@@ -382,49 +392,6 @@ export function createBiHarness(options = {}) {
     return clone(record);
   };
 
-  const attachDashboard = (record, include) => {
-    if (!record) return null;
-    const output = clone(record);
-    if (include?.owner) {
-      output.owner = clone(state.users.find((item) => item.id === record.ownerId) ?? null);
-    }
-    if (include?.widgets) {
-      output.widgets = sortItems(
-        state.widgets.filter((item) => item.dashboardId === record.id && !item.deletedAt),
-        [{ sortOrder: "asc" }],
-      ).map(clone);
-    }
-    return output;
-  };
-
-  const attachWidget = (record, include) => {
-    if (!record) return null;
-    const output = clone(record);
-    if (include?.dashboard) {
-      output.dashboard = clone(
-        state.dashboards.find((item) => item.id === record.dashboardId) ?? null,
-      );
-    }
-    return output;
-  };
-
-  const attachReportSchedule = (record, include) => {
-    if (!record) return null;
-    const output = clone(record);
-    if (include?.dashboard) {
-      output.dashboard = attachDashboard(
-        state.dashboards.find((item) => item.id === record.dashboardId) ?? null,
-        { owner: true, widgets: true },
-      );
-    }
-    if (include?.runs) {
-      output.runs = state.reportRuns
-        .filter((item) => item.reportScheduleId === record.id)
-        .map(clone);
-    }
-    return output;
-  };
-
   const attachEmployee = (record, include) => {
     if (!record) return null;
     const output = clone(record);
@@ -432,6 +399,113 @@ export function createBiHarness(options = {}) {
       output.department = clone(
         state.departments.find((item) => item.id === record.departmentId) ?? null,
       );
+    }
+    if (include?.manager) {
+      output.manager = attachEmployee(
+        state.employees.find((item) => item.id === record.managerId) ?? null,
+        include.manager.include,
+      );
+    }
+    if (include?.managedProjects) {
+      output.managedProjects = state.projects
+        .filter((item) => item.managerId === record.id && item.deletedAt == null)
+        .map((item) => attachProject(item, include.managedProjects.include));
+    }
+    return output;
+  };
+
+  const attachProject = (record, include) => {
+    if (!record) return null;
+    const output = clone(record);
+    if (include?.manager) {
+      output.manager = attachEmployee(
+        state.employees.find((item) => item.id === record.managerId) ?? null,
+        include.manager.include,
+      );
+    }
+    if (include?.tasks) {
+      output.tasks = sortItems(
+        state.tasks.filter((item) => item.projectId === record.id && item.deletedAt == null),
+        include.tasks.orderBy,
+      ).map((item) => attachTask(item, include.tasks.include));
+    }
+    if (include?.milestones) {
+      output.milestones = sortItems(
+        state.projectMilestones.filter(
+          (item) => item.projectId === record.id && item.deletedAt == null,
+        ),
+        include.milestones.orderBy,
+      ).map((item) => attachProjectMilestone(item, include.milestones.include));
+    }
+    return output;
+  };
+
+  const attachProjectMilestone = (record, include) => {
+    if (!record) return null;
+    const output = clone(record);
+    if (include?.project) {
+      output.project = attachProject(
+        state.projects.find((item) => item.id === record.projectId) ?? null,
+        include.project.include,
+      );
+    }
+    if (include?.tasks) {
+      output.tasks = sortItems(
+        state.tasks.filter((item) => item.milestoneId === record.id && item.deletedAt == null),
+        include.tasks.orderBy,
+      ).map((item) => attachTask(item, include.tasks.include));
+    }
+    return output;
+  };
+
+  const attachTaskDependency = (record, include) => {
+    if (!record) return null;
+    const output = clone(record);
+    if (include?.task) {
+      output.task = attachTask(
+        state.tasks.find((item) => item.id === record.taskId) ?? null,
+        include.task.include,
+      );
+    }
+    if (include?.dependsOn) {
+      output.dependsOn = attachTask(
+        state.tasks.find((item) => item.id === record.dependsOnTaskId) ?? null,
+        include.dependsOn.include,
+      );
+    }
+    return output;
+  };
+
+  const attachTask = (record, include) => {
+    if (!record) return null;
+    const output = clone(record);
+    if (include?.project) {
+      output.project = attachProject(
+        state.projects.find((item) => item.id === record.projectId) ?? null,
+        include.project.include,
+      );
+    }
+    if (include?.assignee) {
+      output.assignee = attachEmployee(
+        state.employees.find((item) => item.id === record.assigneeId) ?? null,
+        include.assignee.include,
+      );
+    }
+    if (include?.milestone) {
+      output.milestone = attachProjectMilestone(
+        state.projectMilestones.find((item) => item.id === record.milestoneId) ?? null,
+        include.milestone.include,
+      );
+    }
+    if (include?.dependencies) {
+      output.dependencies = state.taskDependencies
+        .filter((item) => item.taskId === record.id && item.deletedAt == null)
+        .map((item) => attachTaskDependency(item, include.dependencies.include));
+    }
+    if (include?.dependents) {
+      output.dependents = state.taskDependencies
+        .filter((item) => item.dependsOnTaskId === record.id && item.deletedAt == null)
+        .map((item) => attachTaskDependency(item, include.dependents.include));
     }
     return output;
   };
@@ -456,7 +530,10 @@ export function createBiHarness(options = {}) {
     },
     department: {
       async findMany({ where = {}, orderBy } = {}) {
-        return sortItems(state.departments.filter((item) => matches(item, where)), orderBy).map(clone);
+        return sortItems(
+          state.departments.filter((item) => matches(item, where)),
+          orderBy,
+        ).map(clone);
       },
       async create({ data }) {
         return ensureDepartment(data);
@@ -464,8 +541,21 @@ export function createBiHarness(options = {}) {
     },
     employee: {
       async findMany({ where = {}, include, orderBy } = {}) {
-        return sortItems(state.employees.filter((item) => matches(item, where)), orderBy).map((item) =>
-          attachEmployee(item, include),
+        return sortItems(
+          state.employees.filter((item) => matches(item, where)),
+          orderBy,
+        ).map((item) => attachEmployee(item, include));
+      },
+      async findFirst({ where = {}, include } = {}) {
+        return attachEmployee(
+          state.employees.find((item) => matches(item, where)) ?? null,
+          include,
+        );
+      },
+      async findUnique({ where = {}, include } = {}) {
+        return attachEmployee(
+          state.employees.find((item) => matches(item, where)) ?? null,
+          include,
         );
       },
       async create({ data, include } = {}) {
@@ -474,7 +564,10 @@ export function createBiHarness(options = {}) {
     },
     leaveType: {
       async findMany({ where = {}, orderBy } = {}) {
-        return sortItems(state.leaveTypes.filter((item) => matches(item, where)), orderBy).map(clone);
+        return sortItems(
+          state.leaveTypes.filter((item) => matches(item, where)),
+          orderBy,
+        ).map(clone);
       },
       async create({ data }) {
         return ensureLeaveType(data);
@@ -494,7 +587,7 @@ export function createBiHarness(options = {}) {
           if (include?.employee) {
             output.employee = attachEmployee(
               state.employees.find((entry) => entry.id === item.employeeId) ?? null,
-              { department: true },
+              include.employee.include,
             );
           }
           if (include?.leaveType) {
@@ -509,171 +602,141 @@ export function createBiHarness(options = {}) {
         return insertLeaveRequest(data);
       },
     },
-    journalLine: {
-      async findMany({ where = {}, include } = {}) {
-        let items = [...state.journalLines];
-        if (where.account?.type) {
-          items = items.filter((line) => {
-            const account = state.accounts.find((entry) => entry.id === line.accountId);
-            return account?.type === where.account.type;
-          });
-        }
-        if (where.journalEntry) {
-          items = items.filter((line) => {
-            const entry = state.journalEntries.find((record) => record.id === line.journalEntryId);
-            if (!entry) return false;
-            if (where.journalEntry.legalEntityId && entry.legalEntityId !== where.journalEntry.legalEntityId) {
-              return false;
-            }
-            if (where.journalEntry.status && entry.status !== where.journalEntry.status) {
-              return false;
-            }
-            if (where.journalEntry.date?.gte && entry.date < where.journalEntry.date.gte) {
-              return false;
-            }
-            if (where.journalEntry.date?.lte && entry.date > where.journalEntry.date.lte) {
-              return false;
-            }
-            return true;
-          });
-        }
-        return items.map((line) => {
-          const output = clone(line);
-          if (include?.account) {
-            output.account = clone(
-              state.accounts.find((entry) => entry.id === line.accountId) ?? null,
-            );
-          }
-          if (include?.journalEntry) {
-            output.journalEntry = clone(
-              state.journalEntries.find((entry) => entry.id === line.journalEntryId) ?? null,
-            );
-          }
-          return output;
-        });
-      },
-    },
     project: {
-      async findMany({ where = {}, orderBy } = {}) {
-        return sortItems(state.projects.filter((item) => matches(item, where)), orderBy).map(clone);
-      },
-      async create({ data }) {
-        return insertProject(data);
-      },
-    },
-    forecastPrediction: {
       async findMany({ where = {}, include, orderBy } = {}) {
         return sortItems(
-          state.forecastPredictions.filter((item) => matches(item, where)),
+          state.projects.filter((item) => matches(item, where)),
           orderBy,
-        ).map((item) => {
-          const output = clone(item);
-          if (include?.product) {
-            output.product = clone(
-              state.products.find((entry) => entry.id === item.productId) ?? null,
-            );
-          }
-          return output;
-        });
-      },
-      async create({ data }) {
-        return base.prisma.forecastPrediction.create({ data });
-      },
-      async createMany({ data }) {
-        return base.prisma.forecastPrediction.createMany({ data });
-      },
-      async deleteMany({ where } = {}) {
-        return base.prisma.forecastPrediction.deleteMany({ where });
-      },
-    },
-    dashboard: {
-      async findMany({ where = {}, include, orderBy } = {}) {
-        return sortItems(state.dashboards.filter((item) => matches(item, where)), orderBy).map((item) =>
-          attachDashboard(item, include),
-        );
+        ).map((item) => attachProject(item, include));
       },
       async findFirst({ where = {}, include } = {}) {
-        return attachDashboard(
-          state.dashboards.find((item) => matches(item, where)) ?? null,
+        return attachProject(
+          state.projects.find((item) => matches(item, where)) ?? null,
           include,
         );
       },
       async findUnique({ where = {}, include } = {}) {
-        return attachDashboard(
-          state.dashboards.find((item) => matches(item, where)) ?? null,
+        return attachProject(
+          state.projects.find((item) => matches(item, where)) ?? null,
           include,
         );
       },
       async create({ data, include } = {}) {
-        return attachDashboard(insertDashboard(data), include);
+        return attachProject(insertProject(data), include);
       },
       async update({ where, data, include } = {}) {
-        const record = state.dashboards.find((item) => matches(item, where));
+        const record = state.projects.find((item) => matches(item, where));
         Object.assign(record, data, { updatedAt: now() });
-        return attachDashboard(record, include);
+        return attachProject(record, include);
       },
     },
-    widget: {
+    projectMilestone: {
       async findMany({ where = {}, include, orderBy } = {}) {
-        return sortItems(state.widgets.filter((item) => matches(item, where)), orderBy).map((item) =>
-          attachWidget(item, include),
-        );
+        return sortItems(
+          state.projectMilestones.filter((item) => matches(item, where)),
+          orderBy,
+        ).map((item) => attachProjectMilestone(item, include));
       },
       async findFirst({ where = {}, include } = {}) {
-        return attachWidget(state.widgets.find((item) => matches(item, where)) ?? null, include);
+        return attachProjectMilestone(
+          state.projectMilestones.find((item) => matches(item, where)) ?? null,
+          include,
+        );
+      },
+      async findUnique({ where = {}, include } = {}) {
+        return attachProjectMilestone(
+          state.projectMilestones.find((item) => matches(item, where)) ?? null,
+          include,
+        );
       },
       async create({ data, include } = {}) {
-        return attachWidget(insertWidget(data), include);
+        return attachProjectMilestone(insertProjectMilestone(data), include);
       },
       async update({ where, data, include } = {}) {
-        const record = state.widgets.find((item) => matches(item, where));
+        const record = state.projectMilestones.find((item) => matches(item, where));
         Object.assign(record, data, { updatedAt: now() });
-        return attachWidget(record, include);
+        return attachProjectMilestone(record, include);
+      },
+    },
+    task: {
+      async findMany({ where = {}, include, orderBy } = {}) {
+        let items = state.tasks.filter((item) => matches(item, where));
+        if (where?.project?.managerId) {
+          items = items.filter((item) => {
+            const project = state.projects.find((entry) => entry.id === item.projectId);
+            return project?.managerId === where.project.managerId;
+          });
+        }
+        return sortItems(items, orderBy).map((item) => attachTask(item, include));
+      },
+      async findFirst({ where = {}, include } = {}) {
+        let item = state.tasks.find((entry) => matches(entry, where)) ?? null;
+        if (where?.project?.managerId) {
+          item =
+            state.tasks.find((entry) => {
+              const project = state.projects.find((projectItem) => projectItem.id === entry.projectId);
+              return matches(entry, where) && project?.managerId === where.project.managerId;
+            }) ?? null;
+        }
+        return attachTask(item, include);
+      },
+      async findUnique({ where = {}, include } = {}) {
+        return attachTask(
+          state.tasks.find((item) => matches(item, where)) ?? null,
+          include,
+        );
+      },
+      async create({ data, include } = {}) {
+        return attachTask(insertTask(data), include);
+      },
+      async update({ where, data, include } = {}) {
+        const record = state.tasks.find((item) => matches(item, where));
+        Object.assign(record, data, { updatedAt: now() });
+        if (record.estimatedHours != null) {
+          record.estimatedHours = toDecimal(record.estimatedHours);
+        }
+        record.actualHours = toDecimal(record.actualHours);
+        return attachTask(record, include);
+      },
+    },
+    taskDependency: {
+      async findMany({ where = {}, include, orderBy } = {}) {
+        return sortItems(
+          state.taskDependencies.filter((item) => matches(item, where)),
+          orderBy,
+        ).map((item) => attachTaskDependency(item, include));
+      },
+      async findFirst({ where = {}, include } = {}) {
+        return attachTaskDependency(
+          state.taskDependencies.find((item) => matches(item, where)) ?? null,
+          include,
+        );
+      },
+      async findUnique({ where = {}, include } = {}) {
+        if (where.taskId_dependsOnTaskId) {
+          return attachTaskDependency(
+            state.taskDependencies.find(
+              (item) =>
+                item.taskId === where.taskId_dependsOnTaskId.taskId &&
+                item.dependsOnTaskId === where.taskId_dependsOnTaskId.dependsOnTaskId,
+            ) ?? null,
+            include,
+          );
+        }
+        return attachTaskDependency(
+          state.taskDependencies.find((item) => matches(item, where)) ?? null,
+          include,
+        );
+      },
+      async create({ data, include } = {}) {
+        return attachTaskDependency(insertTaskDependency(data), include);
       },
       async delete({ where } = {}) {
-        const record = state.widgets.find((item) => matches(item, where));
-        record.deletedAt = now();
-        return clone(record);
-      },
-    },
-    reportSchedule: {
-      async findMany({ where = {}, include, orderBy } = {}) {
-        return sortItems(
-          state.reportSchedules.filter((item) => matches(item, where)),
-          orderBy,
-        ).map((item) => attachReportSchedule(item, include));
-      },
-      async findFirst({ where = {}, include } = {}) {
-        return attachReportSchedule(
-          state.reportSchedules.find((item) => matches(item, where)) ?? null,
-          include,
-        );
-      },
-      async findUnique({ where = {}, include } = {}) {
-        return attachReportSchedule(
-          state.reportSchedules.find((item) => matches(item, where)) ?? null,
-          include,
-        );
-      },
-      async create({ data, include } = {}) {
-        return attachReportSchedule(insertReportSchedule(data), include);
-      },
-      async update({ where, data, include } = {}) {
-        const record = state.reportSchedules.find((item) => matches(item, where));
-        Object.assign(record, data, { updatedAt: now() });
-        return attachReportSchedule(record, include);
-      },
-    },
-    reportRun: {
-      async findMany({ where = {}, orderBy } = {}) {
-        return sortItems(state.reportRuns.filter((item) => matches(item, where)), orderBy).map(clone);
-      },
-      async create({ data }) {
-        return insertReportRun(data);
-      },
-      async update({ where, data } = {}) {
-        const record = state.reportRuns.find((item) => matches(item, where));
-        Object.assign(record, data, { updatedAt: now() });
+        const index = state.taskDependencies.findIndex((item) => matches(item, where));
+        if (index === -1) {
+          return null;
+        }
+        const [record] = state.taskDependencies.splice(index, 1);
         return clone(record);
       },
     },
@@ -687,10 +750,16 @@ export function createBiHarness(options = {}) {
         }
         return { count: data.length };
       },
+      async findMany({ where = {} } = {}) {
+        return state.notifications.filter((item) => matches(item, where)).map(clone);
+      },
     },
     outboxEvent: {
       async create({ data }) {
         return insertOutboxEvent(data);
+      },
+      async findMany({ where = {} } = {}) {
+        return state.outboxEvents.filter((item) => matches(item, where)).map(clone);
       },
     },
   });
@@ -704,10 +773,9 @@ export function createBiHarness(options = {}) {
     insertLeaveType: ensureLeaveType,
     insertLeaveRequest,
     insertProject,
-    insertDashboard,
-    insertWidget,
-    insertReportSchedule,
-    insertReportRun,
+    insertProjectMilestone,
+    insertTask,
+    insertTaskDependency,
     insertNotification,
     insertOutboxEvent,
   };

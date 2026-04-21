@@ -135,6 +135,10 @@ export class AuditInterceptor implements NestInterceptor {
       employees: "employee",
       departments: "department",
       "purchase-orders": "purchaseOrder",
+      projects: "project",
+      tasks: "task",
+      milestones: "projectMilestone",
+      dependencies: "taskDependency",
     };
     const model = modelMap[entityType];
     const delegates = this.prisma as unknown as Record<

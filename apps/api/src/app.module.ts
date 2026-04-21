@@ -12,6 +12,7 @@ import { PayrollModule } from "./payroll/payroll.module";
 import { SupplyChainModule } from "./supply-chain/supply-chain.module";
 import { ForecastingModule } from "./forecasting/forecasting.module";
 import { BiModule } from "./bi/bi.module";
+import { ProjectManagementModule } from "./project-management/project-management.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { RolesGuard } from "./common/guards/roles.guard";
 import { TenantGuard } from "./common/guards/tenant.guard";
@@ -34,6 +35,7 @@ import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
     SupplyChainModule,
     ForecastingModule,
     BiModule,
+    ProjectManagementModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

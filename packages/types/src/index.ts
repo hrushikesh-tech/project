@@ -7,3 +7,4 @@ export * from "./hr";
 export * from "./payroll";
 export * from "./supply-chain";
 export * from "./bi";
+export * from "./project-management";
