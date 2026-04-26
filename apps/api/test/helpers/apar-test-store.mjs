@@ -1,8 +1,5 @@
-import { createRequire } from 'node:module';
 import { createFinanceHarness } from './finance-test-store.mjs';
-
-const require = createRequire(import.meta.url);
-const { Prisma } = require('@amdox/db');
+import { Prisma } from './prisma-client.mjs';
 
 export function createAparHarness(options = {}) {
   const base = createFinanceHarness(options);

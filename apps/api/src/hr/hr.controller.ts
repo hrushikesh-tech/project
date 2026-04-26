@@ -8,6 +8,7 @@ import {
   Query,
   Req,
 } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import { Roles } from "../common/decorators/roles.decorator";
 import { HrService } from "./hr.service";
 import { CreateDepartmentDto } from "./dto/create-department.dto";
@@ -19,8 +20,10 @@ import { HrQueryDto } from "./dto/hr-query.dto";
 import { ReviewLeaveRequestDto } from "./dto/review-leave-request.dto";
 import { UpdateDepartmentDto } from "./dto/update-department.dto";
 import { UpdateEmployeeDto } from "./dto/update-employee.dto";
+import { EntityIdPipe } from "../common/validation/entity-id.pipe";
 
-@Controller("api/v1/hr")
+@ApiTags("hr")
+@Controller({ path: "hr", version: "1" })
 export class HrController {
   constructor(private readonly hrService: HrService) {}
 
@@ -38,13 +41,13 @@ export class HrController {
 
   @Get("employees/:id")
   @Roles("hr_manager", "tenant_admin", "viewer")
-  getEmployee(@Param("id") id: string) {
+  getEmployee(@Param("id", EntityIdPipe) id: string) {
     return this.hrService.getEmployee(id);
   }
 
   @Patch("employees/:id")
   @Roles("hr_manager", "tenant_admin")
-  updateEmployee(@Param("id") id: string, @Body() dto: UpdateEmployeeDto) {
+  updateEmployee(@Param("id", EntityIdPipe) id: string, @Body() dto: UpdateEmployeeDto) {
     return this.hrService.updateEmployee(id, dto);
   }
 
@@ -68,13 +71,13 @@ export class HrController {
 
   @Get("departments/:id")
   @Roles("hr_manager", "tenant_admin", "viewer")
-  getDepartment(@Param("id") id: string) {
+  getDepartment(@Param("id", EntityIdPipe) id: string) {
     return this.hrService.getDepartment(id);
   }
 
   @Patch("departments/:id")
   @Roles("hr_manager", "tenant_admin")
-  updateDepartment(@Param("id") id: string, @Body() dto: UpdateDepartmentDto) {
+  updateDepartment(@Param("id", EntityIdPipe) id: string, @Body() dto: UpdateDepartmentDto) {
     return this.hrService.updateDepartment(id, dto);
   }
 
@@ -90,13 +93,13 @@ export class HrController {
   }
 
   @Post("leave-requests/:id/submit")
-  submitLeaveRequest(@Param("id") id: string) {
+  submitLeaveRequest(@Param("id", EntityIdPipe) id: string) {
     return this.hrService.submitLeaveRequest(id);
   }
 
   @Post("leave-requests/:id/approve")
   approveLeaveRequest(
-    @Param("id") id: string,
+    @Param("id", EntityIdPipe) id: string,
     @Req() request: { user?: { userId: string; roles?: string[] } },
   ) {
     return this.hrService.approveLeaveRequest(id, request.user);
@@ -104,7 +107,7 @@ export class HrController {
 
   @Post("leave-requests/:id/reject")
   rejectLeaveRequest(
-    @Param("id") id: string,
+    @Param("id", EntityIdPipe) id: string,
     @Body() dto: ReviewLeaveRequestDto,
     @Req() request: { user?: { userId: string; roles?: string[] } },
   ) {
@@ -113,7 +116,7 @@ export class HrController {
 
   @Post("leave-requests/:id/cancel")
   cancelLeaveRequest(
-    @Param("id") id: string,
+    @Param("id", EntityIdPipe) id: string,
     @Body() dto: ReviewLeaveRequestDto,
     @Req() request: { user?: { userId: string; roles?: string[] } },
   ) {
@@ -141,7 +144,7 @@ export class HrController {
   @Patch("attendance/:id/correct")
   @Roles("hr_manager", "tenant_admin", "viewer")
   correctAttendance(
-    @Param("id") id: string,
+    @Param("id", EntityIdPipe) id: string,
     @Body() dto: CorrectAttendanceDto,
     @Req() request: { user?: { userId: string; roles?: string[] } },
   ) {

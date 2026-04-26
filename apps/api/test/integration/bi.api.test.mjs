@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { createBiHarness } from "../helpers/bi-test-store.mjs";
+import { configureApiPlatform, unwrapBody } from "../helpers/app-platform.mjs";
 
 const require = createRequire(import.meta.url);
 const request = require("supertest");
@@ -101,7 +102,7 @@ async function createApp(harness) {
       transform: true,
     }),
   );
-  await app.init();
+  await configureApiPlatform(app);
   return app;
 }
 
@@ -131,15 +132,15 @@ test("BI API supports dashboard CRUD, widget data, and tenant-public access", as
   const app = await createApp(harness);
   const api = request(app.getHttpServer());
 
-  const createdDashboard = (
+  const createdDashboard = unwrapBody(
     await api
       .post("/api/v1/bi/dashboards")
       .set("x-user-id", owner.id)
-      .send({ title: "Executive BI", isPublic: true })
-  ).body;
+      .send({ title: "Executive BI", isPublic: true }),
+  );
   assert.equal(createdDashboard.title, "Executive BI");
 
-  const widget = (
+  const widget = unwrapBody(
     await api
       .post(`/api/v1/bi/dashboards/${createdDashboard.id}/widgets`)
       .set("x-user-id", owner.id)
@@ -153,8 +154,8 @@ test("BI API supports dashboard CRUD, widget data, and tenant-public access", as
             legalEntityId: legalEntity.id,
           },
         },
-      })
-  ).body;
+      }),
+  );
   assert.equal(widget.metricKey, "revenue_by_month");
 
   const data = await api
@@ -162,14 +163,22 @@ test("BI API supports dashboard CRUD, widget data, and tenant-public access", as
     .set("x-user-id", "viewer-user")
     .set("x-roles", "viewer");
   assert.equal(data.status, 200);
-  assert.equal(data.body.widgets[0].result.summary.value, 100000);
+  assert.equal(unwrapBody(data).widgets[0].result.summary.value, 100000);
 
   const dashboards = await api
     .get("/api/v1/bi/dashboards")
     .set("x-user-id", "viewer-user")
     .set("x-roles", "viewer");
   assert.equal(dashboards.status, 200);
-  assert.equal(dashboards.body.length, 1);
+  assert.equal(unwrapBody(dashboards).length, 1);
+
+  const crossTenant = await api
+    .get(`/api/v1/bi/dashboards/${createdDashboard.id}/data`)
+    .set("x-user-id", "viewer-user")
+    .set("x-roles", "viewer")
+    .set("x-auth-tenant", "tenant-1")
+    .set("x-tenant-id", "tenant-2");
+  assert.equal(crossTenant.status, 403);
 
   await app.close();
 });

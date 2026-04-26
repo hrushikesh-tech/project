@@ -1,6 +1,7 @@
 import { InjectQueue } from "@nestjs/bullmq";
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit, Optional } from "@nestjs/common";
 import { Queue } from "bullmq";
+import { areBackgroundQueuesEnabled } from "../../common/queue/queue-runtime";
 import { PrismaService } from "../../prisma/prisma.service";
 import { isWorkerRuntime } from "../../runtime/runtime-mode";
 
@@ -18,11 +19,19 @@ export class BiReportQueue implements OnModuleInit {
 
   constructor(
     private readonly prisma: PrismaService,
+    @Optional()
     @InjectQueue(BI_REPORT_QUEUE)
-    private readonly queue: Queue<BiReportJobPayload>,
+    private readonly queue?: Queue<BiReportJobPayload>,
   ) {}
 
   async onModuleInit() {
+    if (!areBackgroundQueuesEnabled() || !this.queue) {
+      this.logger.warn(
+        "BI report queue is disabled because Redis-backed background queues are unavailable.",
+      );
+      return;
+    }
+
     if (!isWorkerRuntime()) {
       return;
     }
@@ -49,6 +58,13 @@ export class BiReportQueue implements OnModuleInit {
     cronExpression: string;
     isEnabled: boolean;
   }) {
+    if (!this.queue) {
+      this.logger.warn(
+        `Skipping BI report schedule registration for ${schedule.id} because the queue is unavailable.`,
+      );
+      return;
+    }
+
     if (!schedule.isEnabled) {
       return this.removeSchedule(schedule.id);
     }
@@ -78,6 +94,10 @@ export class BiReportQueue implements OnModuleInit {
   }
 
   async removeSchedule(scheduleId: string) {
+    if (!this.queue) {
+      return;
+    }
+
     const repeatables = await this.queue.getRepeatableJobs();
     for (const job of repeatables) {
       if (

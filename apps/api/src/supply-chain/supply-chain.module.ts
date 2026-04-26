@@ -1,6 +1,10 @@
 import { Module } from "@nestjs/common";
 import { APP_FILTER } from "@nestjs/core";
 import { BullModule } from "@nestjs/bullmq";
+import {
+  areBackgroundQueuesEnabled,
+  createQueueProvider,
+} from "../common/queue/queue-runtime";
 import { SupplyChainController } from "./supply-chain.controller";
 import { SupplyChainService } from "./supply-chain.service";
 import { SupplyChainExceptionFilter } from "./supply-chain-exception.filter";
@@ -14,11 +18,17 @@ import {
 import { SupplyChainProcessor } from "./queue/supply-chain.processor";
 import { isWorkerRuntime } from "../runtime/runtime-mode";
 
+const BACKGROUND_QUEUES_ENABLED = areBackgroundQueuesEnabled();
+
 @Module({
   imports: [
-    BullModule.registerQueue({
-      name: SUPPLY_CHAIN_QUEUE,
-    }),
+    ...(BACKGROUND_QUEUES_ENABLED
+      ? [
+          BullModule.registerQueue({
+            name: SUPPLY_CHAIN_QUEUE,
+          }),
+        ]
+      : []),
   ],
   controllers: [SupplyChainController],
   providers: [
@@ -27,7 +37,11 @@ import { isWorkerRuntime } from "../runtime/runtime-mode";
     FifoInventoryService,
     ReorderAutomationService,
     SupplyChainQueue,
-    ...(isWorkerRuntime() ? [SupplyChainProcessor] : []),
+    ...(BACKGROUND_QUEUES_ENABLED
+      ? isWorkerRuntime()
+        ? [SupplyChainProcessor]
+        : []
+      : [createQueueProvider(SUPPLY_CHAIN_QUEUE)]),
     {
       provide: APP_FILTER,
       useClass: SupplyChainExceptionFilter,

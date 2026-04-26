@@ -1,6 +1,10 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { BullModule } from "@nestjs/bullmq";
+import {
+  areBackgroundQueuesEnabled,
+  createQueueProvider,
+} from "../common/queue/queue-runtime";
 import { FinanceModule } from "../finance/finance.module";
 import { ApArController } from "./ap-ar.controller";
 import { ApArService } from "./ap-ar.service";
@@ -16,22 +20,26 @@ import { INVOICE_OCR_QUEUE } from "./queue/invoice-ocr.queue";
 import { InvoiceStorageService } from "./storage/invoice-storage.service";
 import { isWorkerRuntime } from "../runtime/runtime-mode";
 
+const BACKGROUND_QUEUES_ENABLED = areBackgroundQueuesEnabled();
+
 @Module({
   imports: [
     ConfigModule,
     FinanceModule,
-    BullModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        connection: parseRedisConnection(
-          configService.get<string>("REDIS_URL", "redis://127.0.0.1:6379"),
-        ),
-      }),
-    }),
-    BullModule.registerQueue({
-      name: INVOICE_OCR_QUEUE,
-    }),
+    ...(BACKGROUND_QUEUES_ENABLED
+      ? [
+          BullModule.forRootAsync({
+            imports: [ConfigModule],
+            inject: [ConfigService],
+            useFactory: (configService: ConfigService) => ({
+              connection: readRedisConnection(configService),
+            }),
+          }),
+          BullModule.registerQueue({
+            name: INVOICE_OCR_QUEUE,
+          }),
+        ]
+      : []),
   ],
   controllers: [ApArController],
   providers: [
@@ -51,7 +59,11 @@ import { isWorkerRuntime } from "../runtime/runtime-mode";
         tesseractProvider: TesseractOcrProvider,
       ) => [textractProvider, tesseractProvider],
     },
-    ...(isWorkerRuntime() ? [InvoiceOcrProcessor] : []),
+    ...(BACKGROUND_QUEUES_ENABLED
+      ? isWorkerRuntime()
+        ? [InvoiceOcrProcessor]
+        : []
+      : [createQueueProvider(INVOICE_OCR_QUEUE)]),
   ],
 })
 export class ApArModule {}
@@ -63,6 +75,22 @@ function parseRedisConnection(redisUrl: string) {
     port: Number(parsed.port || 6379),
     username: parsed.username || undefined,
     password: parsed.password || undefined,
+    maxRetriesPerRequest: null,
+    lazyConnect: true,
+  };
+}
+
+function readRedisConnection(configService: ConfigService) {
+  const redisUrl = configService.get<string>("REDIS_URL");
+  if (redisUrl) {
+    return parseRedisConnection(redisUrl);
+  }
+
+  return {
+    host: configService.getOrThrow<string>("REDIS_HOST"),
+    port: Number(configService.get<number>("REDIS_PORT", 6379)),
+    username: configService.get<string>("REDIS_USERNAME") || undefined,
+    password: configService.get<string>("REDIS_PASSWORD") || undefined,
     maxRetriesPerRequest: null,
     lazyConnect: true,
   };

@@ -10,6 +10,7 @@ import {
   PostedEntryImmutableException,
   UnbalancedEntryException,
 } from '@amdox/types';
+import { writeApiErrorResponse } from '../common/api/request-context';
 
 @Catch(
   MissingFxRateException,
@@ -30,12 +31,9 @@ export class FinanceExceptionFilter implements ExceptionFilter {
       status = HttpStatus.CONFLICT;
     }
 
-    response.status(status).json({
-      statusCode: status,
-      error: exception.name,
+    return writeApiErrorResponse(response, request, status, {
+      code: exception.name,
       message: exception.message,
-      path: request.url,
-      timestamp: new Date().toISOString(),
     });
   }
 }

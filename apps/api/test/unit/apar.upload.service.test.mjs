@@ -10,6 +10,7 @@ const { ApArService } = require('../../dist/src/ap-ar/ap-ar.service.js');
 const { OcrMapperService } = require('../../dist/src/ap-ar/ocr/ocr-mapper.service.js');
 
 function createUploadService(harness, overrides = {}) {
+  process.env.REDIS_URL = overrides.redisUrl ?? 'redis://localhost:6379';
   const storageCalls = [];
   const queueCalls = [];
   const storageService = overrides.storageService ?? {

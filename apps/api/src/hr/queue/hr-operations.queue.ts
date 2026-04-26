@@ -1,9 +1,10 @@
-import { Logger, OnModuleInit } from "@nestjs/common";
+import { Logger, OnModuleInit, Optional } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CronExpression } from "../../common/schedule/schedule";
 import { isWorkerRuntime } from "../../runtime/runtime-mode";
+import { areBackgroundQueuesEnabled } from "../../common/queue/queue-runtime";
 
 export const HR_OPERATIONS_QUEUE = "hr-operations";
 export const LEAVE_ACCRUAL_NIGHTLY_JOB = "leave-accrual-nightly";
@@ -19,11 +20,19 @@ export class HrOperationsQueue implements OnModuleInit {
 
   constructor(
     private readonly prisma: PrismaService,
+    @Optional()
     @InjectQueue(HR_OPERATIONS_QUEUE)
-    private readonly queue: Queue<HrOperationJobPayload>,
+    private readonly queue?: Queue<HrOperationJobPayload>,
   ) {}
 
   async onModuleInit() {
+    if (!areBackgroundQueuesEnabled() || !this.queue) {
+      this.logger.warn(
+        "HR operations queue is disabled because Redis-backed background queues are unavailable.",
+      );
+      return;
+    }
+
     if (!isWorkerRuntime()) {
       return;
     }

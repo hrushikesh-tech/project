@@ -1,0 +1,10 @@
+{
+  "0427231d1ce5c3c369a3c3b216f1952410a3a6f1fb394f29b89709d1e42ca54c": {
+    "name": "BiMetricSummary",
+    "query": "query BiMetricSummary($metricKey: BiMetricKey!, $filters: BiMetricFiltersInput) { biMetric(metricKey: $metricKey, filters: $filters) { metricKey generatedAt summary { value label unit } points { key label value secondaryValue } } }"
+  },
+  "e7aef47ab2aa97275b75211f97ab036defd0d8ac3469067011dacb4f12dfcac0": {
+    "name": "DashboardRead",
+    "query": "query DashboardRead($id: ID!, $filters: BiMetricFiltersInput) { biDashboard(id: $id) { id title isPublic widgets { id title metricKey } } biDashboardData(id: $id, filters: $filters) { dashboardId generatedAt widgets { result { metricKey summary { value label unit } } } } }"
+  }
+}

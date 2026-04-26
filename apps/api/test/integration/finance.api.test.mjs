@@ -2,16 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { createFinanceHarness } from '../helpers/finance-test-store.mjs';
+import { configureApiPlatform, unwrapBody } from '../helpers/app-platform.mjs';
 
 const require = createRequire(import.meta.url);
 const request = require('supertest');
 const { Test } = require('@nestjs/testing');
 const { ValidationPipe } = require('@nestjs/common');
+const { Reflector } = require('@nestjs/core');
 const { ConfigModule, ConfigService } = require('@nestjs/config');
 const { ClsModule, ClsService } = require('nestjs-cls');
 const { PrismaService } = require('../../dist/src/prisma/prisma.service.js');
 const { PrismaModule } = require('../../dist/src/prisma/prisma.module.js');
 const { FinanceModule } = require('../../dist/src/finance/finance.module.js');
+const { TenantGuard } = require('../../dist/src/common/guards/tenant.guard.js');
+const { RolesGuard } = require('../../dist/src/common/guards/roles.guard.js');
 
 async function createApp(harness) {
   const moduleBuilder = Test.createTestingModule({
@@ -30,6 +34,24 @@ async function createApp(harness) {
   const moduleRef = await moduleBuilder.compile();
 
   const app = moduleRef.createNestApplication();
+  app.use((req, _res, next) => {
+    const rolesHeader = req.headers['x-roles'];
+    req.user = {
+      userId: typeof req.headers['x-user-id'] === 'string' ? req.headers['x-user-id'] : 'finance-user',
+      email: 'finance@amdox.dev',
+      roles:
+        typeof rolesHeader === 'string'
+          ? rolesHeader.split(',').map((value) => value.trim()).filter(Boolean)
+          : ['tenant_admin'],
+      tenantId:
+        typeof req.headers['x-auth-tenant'] === 'string' ? req.headers['x-auth-tenant'] : 'tenant-1',
+    };
+    next();
+  });
+  app.useGlobalGuards(
+    new TenantGuard(harness.cls, new Reflector()),
+    new RolesGuard(new Reflector()),
+  );
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -37,7 +59,7 @@ async function createApp(harness) {
       transform: true,
     }),
   );
-  await app.init();
+  await configureApiPlatform(app);
   return app;
 }
 
@@ -46,61 +68,61 @@ test('finance API can create resources, post journals, and return reports', asyn
   const app = await createApp(harness);
   const api = request(app.getHttpServer());
 
-  const entity = (
+  const entity = unwrapBody(
     await api.post('/api/v1/finance/entities').send({
       code: 'IND',
       name: 'India Operations',
       baseCurrency: 'INR',
-    })
-  ).body;
+    }),
+  );
 
-  const cash = (
+  const cash = unwrapBody(
     await api.post('/api/v1/finance/accounts').send({
       legalEntityId: entity.id,
       code: '1000',
       name: 'Cash',
       type: 'ASSET',
       currency: 'INR',
-    })
-  ).body;
-  const capital = (
+    }),
+  );
+  const capital = unwrapBody(
     await api.post('/api/v1/finance/accounts').send({
       legalEntityId: entity.id,
       code: '3000',
       name: 'Capital',
       type: 'EQUITY',
       currency: 'INR',
-    })
-  ).body;
-  const revenue = (
+    }),
+  );
+  const revenue = unwrapBody(
     await api.post('/api/v1/finance/accounts').send({
       legalEntityId: entity.id,
       code: '4000',
       name: 'Revenue',
       type: 'REVENUE',
       currency: 'INR',
-    })
-  ).body;
-  const expense = (
+    }),
+  );
+  const expense = unwrapBody(
     await api.post('/api/v1/finance/accounts').send({
       legalEntityId: entity.id,
       code: '5000',
       name: 'Expense',
       type: 'EXPENSE',
       currency: 'INR',
-    })
-  ).body;
+    }),
+  );
 
-  const period = (
+  const period = unwrapBody(
     await api.post('/api/v1/finance/periods').send({
       legalEntityId: entity.id,
       name: 'FY-2026',
       startDate: '2026-01-01T00:00:00.000Z',
       endDate: '2026-12-31T00:00:00.000Z',
-    })
-  ).body;
+    }),
+  );
 
-  const seedCapital = (
+  const seedCapital = unwrapBody(
     await api.post('/api/v1/finance/journal-entries').send({
       legalEntityId: entity.id,
       periodId: period.id,
@@ -110,11 +132,11 @@ test('finance API can create resources, post journals, and return reports', asyn
         { accountId: cash.id, debitAmountMinor: 5000, currency: 'INR' },
         { accountId: capital.id, creditAmountMinor: 5000, currency: 'INR' },
       ],
-    })
-  ).body;
+    }),
+  );
   await api.post(`/api/v1/finance/journal-entries/${seedCapital.id}/post`).send({});
 
-  const sale = (
+  const sale = unwrapBody(
     await api.post('/api/v1/finance/journal-entries').send({
       legalEntityId: entity.id,
       periodId: period.id,
@@ -124,11 +146,11 @@ test('finance API can create resources, post journals, and return reports', asyn
         { accountId: cash.id, debitAmountMinor: 2000, currency: 'INR' },
         { accountId: revenue.id, creditAmountMinor: 2000, currency: 'INR' },
       ],
-    })
-  ).body;
+    }),
+  );
   await api.post(`/api/v1/finance/journal-entries/${sale.id}/post`).send({});
 
-  const cost = (
+  const cost = unwrapBody(
     await api.post('/api/v1/finance/journal-entries').send({
       legalEntityId: entity.id,
       periodId: period.id,
@@ -138,15 +160,15 @@ test('finance API can create resources, post journals, and return reports', asyn
         { accountId: expense.id, debitAmountMinor: 500, currency: 'INR' },
         { accountId: cash.id, creditAmountMinor: 500, currency: 'INR' },
       ],
-    })
-  ).body;
+    }),
+  );
   await api.post(`/api/v1/finance/journal-entries/${cost.id}/post`).send({});
 
   const accountsResponse = await api.get('/api/v1/finance/accounts').query({
     legalEntityId: entity.id,
   });
   assert.equal(accountsResponse.status, 200);
-  assert.equal(accountsResponse.body.length, 4);
+  assert.equal(unwrapBody(accountsResponse).length, 4);
 
   const trialBalance = await api.get('/api/v1/finance/reports/trial-balance').query({
     legalEntityId: entity.id,
@@ -154,8 +176,8 @@ test('finance API can create resources, post journals, and return reports', asyn
     endDate: '2026-04-30T00:00:00.000Z',
   });
   assert.equal(trialBalance.status, 200);
-  assert.equal(trialBalance.body.totalDebitMinor, '7500');
-  assert.equal(trialBalance.body.totalCreditMinor, '7500');
+  assert.equal(unwrapBody(trialBalance).totalDebitMinor, '7500');
+  assert.equal(unwrapBody(trialBalance).totalCreditMinor, '7500');
 
   const incomeStatement = await api.get('/api/v1/finance/reports/income-statement').query({
     legalEntityId: entity.id,
@@ -163,9 +185,9 @@ test('finance API can create resources, post journals, and return reports', asyn
     endDate: '2026-04-30T00:00:00.000Z',
   });
   assert.equal(incomeStatement.status, 200);
-  assert.equal(incomeStatement.body.totalRevenueMinor, '2000');
-  assert.equal(incomeStatement.body.totalExpenseMinor, '500');
-  assert.equal(incomeStatement.body.netIncomeMinor, '1500');
+  assert.equal(unwrapBody(incomeStatement).totalRevenueMinor, '2000');
+  assert.equal(unwrapBody(incomeStatement).totalExpenseMinor, '500');
+  assert.equal(unwrapBody(incomeStatement).netIncomeMinor, '1500');
 
   const balanceSheet = await api.get('/api/v1/finance/reports/balance-sheet').query({
     legalEntityId: entity.id,
@@ -173,8 +195,15 @@ test('finance API can create resources, post journals, and return reports', asyn
     endDate: '2026-04-30T00:00:00.000Z',
   });
   assert.equal(balanceSheet.status, 200);
-  assert.equal(balanceSheet.body.totalAssetsMinor, '6500');
-  assert.equal(balanceSheet.body.totalEquityMinor, '5000');
+  assert.equal(unwrapBody(balanceSheet).totalAssetsMinor, '6500');
+  assert.equal(unwrapBody(balanceSheet).totalEquityMinor, '5000');
+
+  const crossTenant = await api
+    .get('/api/v1/finance/accounts')
+    .query({ legalEntityId: entity.id })
+    .set('x-auth-tenant', 'tenant-1')
+    .set('x-tenant-id', 'tenant-2');
+  assert.equal(crossTenant.status, 403);
 
   await app.close();
 });
@@ -184,86 +213,86 @@ test('finance API blocks closed-period posting, serves FX, and creates intercomp
   const app = await createApp(harness);
   const api = request(app.getHttpServer());
 
-  const sourceEntity = (
+  const sourceEntity = unwrapBody(
     await api.post('/api/v1/finance/entities').send({
       code: 'SRC',
       name: 'Source Entity',
       baseCurrency: 'INR',
-    })
-  ).body;
-  const destinationEntity = (
+    }),
+  );
+  const destinationEntity = unwrapBody(
     await api.post('/api/v1/finance/entities').send({
       code: 'DST',
       name: 'Destination Entity',
       baseCurrency: 'INR',
-    })
-  ).body;
+    }),
+  );
 
-  const sourceCash = (
+  const sourceCash = unwrapBody(
     await api.post('/api/v1/finance/accounts').send({
       legalEntityId: sourceEntity.id,
       code: '1000',
       name: 'Source Cash',
       type: 'ASSET',
       currency: 'INR',
-    })
-  ).body;
-  const sourceClearing = (
+    }),
+  );
+  const sourceClearing = unwrapBody(
     await api.post('/api/v1/finance/accounts').send({
       legalEntityId: sourceEntity.id,
       code: '1200',
       name: 'Due From Affiliate',
       type: 'ASSET',
       currency: 'INR',
-    })
-  ).body;
-  const destinationCash = (
+    }),
+  );
+  const destinationCash = unwrapBody(
     await api.post('/api/v1/finance/accounts').send({
       legalEntityId: destinationEntity.id,
       code: '1000',
       name: 'Destination Cash',
       type: 'ASSET',
       currency: 'INR',
-    })
-  ).body;
-  const destinationClearing = (
+    }),
+  );
+  const destinationClearing = unwrapBody(
     await api.post('/api/v1/finance/accounts').send({
       legalEntityId: destinationEntity.id,
       code: '2200',
       name: 'Due To Affiliate',
       type: 'LIABILITY',
       currency: 'INR',
-    })
-  ).body;
+    }),
+  );
 
-  const closedPeriod = (
+  const closedPeriod = unwrapBody(
     await api.post('/api/v1/finance/periods').send({
       legalEntityId: sourceEntity.id,
       name: 'APR-CLOSED',
       startDate: '2026-04-01T00:00:00.000Z',
       endDate: '2026-04-30T00:00:00.000Z',
-    })
-  ).body;
+    }),
+  );
   await api.post(`/api/v1/finance/periods/${closedPeriod.id}/close`).send({});
 
-  const openSourcePeriod = (
+  const openSourcePeriod = unwrapBody(
     await api.post('/api/v1/finance/periods').send({
       legalEntityId: sourceEntity.id,
       name: 'APR-OPEN',
       startDate: '2026-04-01T00:00:00.000Z',
       endDate: '2026-04-30T00:00:00.000Z',
-    })
-  ).body;
-  const openDestinationPeriod = (
+    }),
+  );
+  const openDestinationPeriod = unwrapBody(
     await api.post('/api/v1/finance/periods').send({
       legalEntityId: destinationEntity.id,
       name: 'APR-DEST',
       startDate: '2026-04-01T00:00:00.000Z',
       endDate: '2026-04-30T00:00:00.000Z',
-    })
-  ).body;
+    }),
+  );
 
-  const draft = (
+  const draft = unwrapBody(
     await api.post('/api/v1/finance/journal-entries').send({
       legalEntityId: sourceEntity.id,
       periodId: closedPeriod.id,
@@ -273,8 +302,8 @@ test('finance API blocks closed-period posting, serves FX, and creates intercomp
         { accountId: sourceCash.id, debitAmountMinor: 1000, currency: 'INR' },
         { accountId: sourceClearing.id, creditAmountMinor: 1000, currency: 'INR' },
       ],
-    })
-  ).body;
+    }),
+  );
   const closedPosting = await api.post(`/api/v1/finance/journal-entries/${draft.id}/post`).send({});
   assert.equal(closedPosting.status, 409);
 
@@ -291,7 +320,7 @@ test('finance API blocks closed-period posting, serves FX, and creates intercomp
     effectiveDate: '2026-04-05T00:00:00.000Z',
   });
   assert.equal(fxResponse.status, 200);
-  assert.equal(fxResponse.body.rate, '82.5');
+  assert.equal(unwrapBody(fxResponse).rate, '82.5');
 
   const transfer = await api.post('/api/v1/finance/intercompany-transfers').send({
     sourceLegalEntityId: sourceEntity.id,
@@ -314,7 +343,7 @@ test('finance API blocks closed-period posting, serves FX, and creates intercomp
   });
 
   assert.equal(transfer.status, 201);
-  assert.equal(transfer.body.totalAmount, '2500');
+  assert.equal(unwrapBody(transfer).totalAmount, '2500');
   assert.equal(harness.state.intercompanyTransfers.length, 1);
   assert.equal(harness.state.journalEntries.length >= 3, true);
 

@@ -1,8 +1,5 @@
-import { createRequire } from "node:module";
 import { createForecastHarness } from "./forecast-test-store.mjs";
-
-const require = createRequire(import.meta.url);
-const { Prisma } = require("@amdox/db");
+import { Prisma } from "./prisma-client.mjs";
 
 export function createBiHarness(options = {}) {
   const base = createForecastHarness(options);

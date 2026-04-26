@@ -1,8 +1,10 @@
 import { Controller, Get, Query } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { ReportQueryDto } from './dto/finance-query.dto';
 import { FinanceService } from './finance.service';
 
-@Controller('api/v1/finance/reports')
+@ApiTags('finance')
+@Controller({ path: 'finance/reports', version: '1' })
 export class FinanceReportsController {
   constructor(private readonly financeService: FinanceService) {}
 

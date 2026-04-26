@@ -1,8 +1,5 @@
-import { createRequire } from "node:module";
 import { createBiHarness } from "./bi-test-store.mjs";
-
-const require = createRequire(import.meta.url);
-const { Prisma } = require("@amdox/db");
+import { Prisma } from "./prisma-client.mjs";
 
 export function createNotificationsHarness(options = {}) {
   const base = createBiHarness(options);

@@ -1,6 +1,8 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ClsService } from 'nestjs-cls';
+import { getRequestFromExecutionContext } from '../../bi/graphql/graphql-auth';
+import { normalizeTenantIdHeader } from '../validation/tenant-id-header.dto';
 
 @Injectable()
 export class TenantGuard implements CanActivate {
@@ -16,7 +18,7 @@ export class TenantGuard implements CanActivate {
     ]);
     if (isPublic) return true;
 
-    const request = context.switchToHttp().getRequest();
+    const request = getRequestFromExecutionContext(context);
     const user = request.user;
 
     if (!user) return false;
@@ -25,11 +27,13 @@ export class TenantGuard implements CanActivate {
     const isSuperAdmin = user.roles?.includes('super_admin');
     const tenantOverride = this.readTenantOverride(request.headers?.['x-tenant-id']);
 
-    if (tenantId && tenantOverride && tenantOverride !== tenantId) {
+    if (!isSuperAdmin && tenantId && tenantOverride && tenantOverride !== tenantId) {
       throw new ForbiddenException('Tenant override does not match the authenticated tenant.');
     }
 
-    const effectiveTenantId = tenantId ?? (isSuperAdmin ? tenantOverride : undefined);
+    const effectiveTenantId = isSuperAdmin
+      ? tenantOverride
+      : tenantId ?? tenantOverride;
     if (!effectiveTenantId) {
       if (isSuperAdmin) {
         throw new ForbiddenException('Super-admin requests must include an x-tenant-id header.');
@@ -38,16 +42,27 @@ export class TenantGuard implements CanActivate {
     }
 
     this.cls.set('tenantId', effectiveTenantId);
+    this.cls.set('effectiveTenantId', effectiveTenantId);
+    this.cls.set(
+      'actingTenantOverride',
+      Boolean(isSuperAdmin && tenantOverride && tenantOverride === effectiveTenantId),
+    );
+    request.user = {
+      ...user,
+      effectiveTenantId,
+      selectedTenantId: tenantOverride,
+      actingTenantOverride: Boolean(
+        isSuperAdmin && tenantOverride && tenantOverride === effectiveTenantId,
+      ),
+    };
     return true;
   }
 
   private readTenantOverride(value: string | string[] | undefined) {
-    const headerValue = Array.isArray(value) ? value[0] : value;
-    if (typeof headerValue !== 'string') {
-      return undefined;
+    try {
+      return normalizeTenantIdHeader(value);
+    } catch {
+      throw new ForbiddenException('Invalid x-tenant-id header.');
     }
-
-    const normalized = headerValue.trim();
-    return normalized.length > 0 ? normalized : undefined;
   }
 }

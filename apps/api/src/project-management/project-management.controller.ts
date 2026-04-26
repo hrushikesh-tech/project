@@ -8,6 +8,7 @@ import {
   Post,
   Query,
 } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import { Roles } from "../common/decorators/roles.decorator";
 import { ProjectManagementService } from "./project-management.service";
 import { CreateProjectDto } from "./dto/create-project.dto";
@@ -21,8 +22,10 @@ import { UpdateMilestoneDto } from "./dto/update-milestone.dto";
 import { MilestoneQueryDto } from "./dto/milestone-query.dto";
 import { CreateTaskDependencyDto } from "./dto/create-task-dependency.dto";
 import { ProjectUtilizationQueryDto } from "./dto/project-utilization-query.dto";
+import { EntityIdPipe } from "../common/validation/entity-id.pipe";
 
-@Controller("api/v1/projects")
+@ApiTags("project-management")
+@Controller({ path: "projects", version: "1" })
 export class ProjectManagementController {
   constructor(
     private readonly projectManagementService: ProjectManagementService,
@@ -48,13 +51,13 @@ export class ProjectManagementController {
 
   @Get(":id")
   @Roles("project_manager", "tenant_admin", "viewer")
-  getProject(@Param("id") id: string) {
+  getProject(@Param("id", EntityIdPipe) id: string) {
     return this.projectManagementService.getProject(id);
   }
 
   @Patch(":id")
   @Roles("project_manager", "tenant_admin")
-  updateProject(@Param("id") id: string, @Body() dto: UpdateProjectDto) {
+  updateProject(@Param("id", EntityIdPipe) id: string, @Body() dto: UpdateProjectDto) {
     return this.projectManagementService.updateProject(id, dto);
   }
 
@@ -72,13 +75,13 @@ export class ProjectManagementController {
 
   @Get("tasks/:id")
   @Roles("project_manager", "tenant_admin", "viewer")
-  getTask(@Param("id") id: string) {
+  getTask(@Param("id", EntityIdPipe) id: string) {
     return this.projectManagementService.getTask(id);
   }
 
   @Patch("tasks/:id")
   @Roles("project_manager", "tenant_admin")
-  updateTask(@Param("id") id: string, @Body() dto: UpdateTaskDto) {
+  updateTask(@Param("id", EntityIdPipe) id: string, @Body() dto: UpdateTaskDto) {
     return this.projectManagementService.updateTask(id, dto);
   }
 
@@ -96,13 +99,13 @@ export class ProjectManagementController {
 
   @Get("milestones/:id")
   @Roles("project_manager", "tenant_admin", "viewer")
-  getMilestone(@Param("id") id: string) {
+  getMilestone(@Param("id", EntityIdPipe) id: string) {
     return this.projectManagementService.getMilestone(id);
   }
 
   @Patch("milestones/:id")
   @Roles("project_manager", "tenant_admin")
-  updateMilestone(@Param("id") id: string, @Body() dto: UpdateMilestoneDto) {
+  updateMilestone(@Param("id", EntityIdPipe) id: string, @Body() dto: UpdateMilestoneDto) {
     return this.projectManagementService.updateMilestone(id, dto);
   }
 
@@ -120,7 +123,7 @@ export class ProjectManagementController {
 
   @Delete("dependencies/:id")
   @Roles("project_manager", "tenant_admin")
-  deleteTaskDependency(@Param("id") id: string) {
+  deleteTaskDependency(@Param("id", EntityIdPipe) id: string) {
     return this.projectManagementService.deleteTaskDependency(id);
   }
 }

@@ -1,9 +1,10 @@
 import { InjectQueue } from "@nestjs/bullmq";
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit, Optional } from "@nestjs/common";
 import { Queue } from "bullmq";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CronExpression } from "../../common/schedule/schedule";
 import { isWorkerRuntime } from "../../runtime/runtime-mode";
+import { areBackgroundQueuesEnabled } from "../../common/queue/queue-runtime";
 
 export const FORECASTING_QUEUE = "forecasting-operations";
 export const WEEKLY_RETRAIN_JOB = "weekly-retrain";
@@ -18,11 +19,19 @@ export class ForecastingQueue implements OnModuleInit {
 
   constructor(
     private readonly prisma: PrismaService,
+    @Optional()
     @InjectQueue(FORECASTING_QUEUE)
-    private readonly queue: Queue<ForecastingJobPayload>,
+    private readonly queue?: Queue<ForecastingJobPayload>,
   ) {}
 
   async onModuleInit() {
+    if (!areBackgroundQueuesEnabled() || !this.queue) {
+      this.logger.warn(
+        "Forecasting queue is disabled because Redis-backed background queues are unavailable.",
+      );
+      return;
+    }
+
     if (!isWorkerRuntime()) {
       return;
     }

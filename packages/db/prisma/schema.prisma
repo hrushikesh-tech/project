@@ -47,6 +47,12 @@ enum WidgetType {
   FUNNEL
 }
 
+enum UserSessionStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
 // =============================================================================
 // Section 2 — Core / System Models
 // =============================================================================
@@ -96,6 +102,30 @@ model User {
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([keycloakId])
+}
+
+model UserSession {
+  id                String            @id @default(cuid())
+  tenantId          String
+  userId            String
+  keycloakSessionId String
+  refreshTokenHash  String
+  status            UserSessionStatus @default(ACTIVE)
+  issuedAt          DateTime
+  lastUsedAt        DateTime?
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  revocationReason  String?
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  deletedAt         DateTime?
+
+  @@unique([tenantId, userId, keycloakSessionId])
+  @@index([tenantId, userId, status])
+  @@index([tenantId, keycloakSessionId])
+  @@index([expiresAt])
 }
 
 model AuditLog {

@@ -10,6 +10,7 @@ import {
   MilestoneTaskLinkException,
   ProjectManagerValidationException,
 } from "@amdox/types";
+import { writeApiErrorResponse } from "../common/api/request-context";
 
 @Catch(
   CircularDependencyException,
@@ -27,12 +28,9 @@ export class ProjectManagementExceptionFilter implements ExceptionFilter {
           ? HttpStatus.BAD_REQUEST
           : HttpStatus.BAD_REQUEST;
 
-    response.status(status).json({
-      statusCode: status,
-      error: exception.name,
+    return writeApiErrorResponse(response, request, status, {
+      code: exception.name,
       message: exception.message,
-      path: request.url,
-      timestamp: new Date().toISOString(),
     });
   }
 }

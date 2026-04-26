@@ -10,6 +10,7 @@ import {
   Req,
   Sse,
 } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import { Roles } from "../common/decorators/roles.decorator";
 import { RequestUser } from "../common/interfaces/request-user.interface";
 import { BiService } from "./bi.service";
@@ -21,8 +22,10 @@ import { UpdateWidgetDto } from "./dto/update-widget.dto";
 import { MetricQueryDto } from "./dto/metric-query.dto";
 import { CreateReportScheduleDto } from "./dto/create-report-schedule.dto";
 import { UpdateReportScheduleDto } from "./dto/update-report-schedule.dto";
+import { EntityIdPipe } from "../common/validation/entity-id.pipe";
 
-@Controller("api/v1/bi")
+@ApiTags("bi")
+@Controller({ path: "bi", version: "1" })
 export class BiController {
   constructor(
     private readonly biService: BiService,
@@ -64,7 +67,7 @@ export class BiController {
     "supply_chain_manager",
   )
   getDashboard(
-    @Param("id") id: string,
+    @Param("id", EntityIdPipe) id: string,
     @Req() request: { user?: RequestUser },
   ) {
     return this.biService.getDashboard(id, request.user ?? {});
@@ -78,7 +81,7 @@ export class BiController {
     "supply_chain_manager",
   )
   updateDashboard(
-    @Param("id") id: string,
+    @Param("id", EntityIdPipe) id: string,
     @Body() dto: UpdateDashboardDto,
     @Req() request: { user?: RequestUser },
   ) {
@@ -93,7 +96,7 @@ export class BiController {
     "supply_chain_manager",
   )
   deleteDashboard(
-    @Param("id") id: string,
+    @Param("id", EntityIdPipe) id: string,
     @Req() request: { user?: RequestUser },
   ) {
     return this.biService.deleteDashboard(id, request.user ?? {});
@@ -107,7 +110,7 @@ export class BiController {
     "supply_chain_manager",
   )
   addWidget(
-    @Param("id") dashboardId: string,
+    @Param("id", EntityIdPipe) dashboardId: string,
     @Body() dto: CreateWidgetDto,
     @Req() request: { user?: RequestUser },
   ) {
@@ -122,8 +125,8 @@ export class BiController {
     "supply_chain_manager",
   )
   updateWidget(
-    @Param("dashboardId") dashboardId: string,
-    @Param("widgetId") widgetId: string,
+    @Param("dashboardId", EntityIdPipe) dashboardId: string,
+    @Param("widgetId", EntityIdPipe) widgetId: string,
     @Body() dto: UpdateWidgetDto,
     @Req() request: { user?: RequestUser },
   ) {
@@ -143,8 +146,8 @@ export class BiController {
     "supply_chain_manager",
   )
   deleteWidget(
-    @Param("dashboardId") dashboardId: string,
-    @Param("widgetId") widgetId: string,
+    @Param("dashboardId", EntityIdPipe) dashboardId: string,
+    @Param("widgetId", EntityIdPipe) widgetId: string,
     @Req() request: { user?: RequestUser },
   ) {
     return this.biService.deleteWidget(
@@ -163,7 +166,7 @@ export class BiController {
     "supply_chain_manager",
   )
   getDashboardData(
-    @Param("id") id: string,
+    @Param("id", EntityIdPipe) id: string,
     @Query() query: MetricQueryDto,
     @Req() request: { user?: RequestUser },
   ) {
@@ -179,7 +182,7 @@ export class BiController {
     "supply_chain_manager",
   )
   streamDashboard(
-    @Param("id") id: string,
+    @Param("id", EntityIdPipe) id: string,
     @Req() request: { user?: RequestUser },
   ) {
     return this.biService.streamDashboard(id, request.user ?? {});
@@ -218,7 +221,7 @@ export class BiController {
     "supply_chain_manager",
   )
   updateReportSchedule(
-    @Param("id") id: string,
+    @Param("id", EntityIdPipe) id: string,
     @Body() dto: UpdateReportScheduleDto,
     @Req() request: { user?: RequestUser },
   ) {

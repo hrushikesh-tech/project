@@ -1,0 +1,12 @@
+^\.env\.example$
+^apps/api/src/
+^apps/api/test/
+^apps/web/app/
+^apps/web/src/
+^apps/web/tests/
+^infra/keycloak/
+^package\.json$
+^packages/db/prisma/
+^packages/db/src/
+^packages/ui/src/
+^scripts/

@@ -11,6 +11,7 @@ import {
   InsufficientLeaveBalanceException,
   InvalidLeaveTransitionException,
 } from "@amdox/types";
+import { writeApiErrorResponse } from "../common/api/request-context";
 
 @Catch(
   AttendanceCorrectionException,
@@ -24,12 +25,9 @@ export class HrExceptionFilter implements ExceptionFilter {
     const response = host.switchToHttp().getResponse();
     const request = host.switchToHttp().getRequest();
 
-    response.status(HttpStatus.CONFLICT).json({
-      statusCode: HttpStatus.CONFLICT,
-      error: exception.name,
+    return writeApiErrorResponse(response, request, HttpStatus.CONFLICT, {
+      code: exception.name,
       message: exception.message,
-      path: request.url,
-      timestamp: new Date().toISOString(),
     });
   }
 }

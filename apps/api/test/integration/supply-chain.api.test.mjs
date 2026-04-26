@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { createSupplyChainHarness } from '../helpers/supply-chain-test-store.mjs';
+import { configureApiPlatform, unwrapBody } from '../helpers/app-platform.mjs';
 
 const require = createRequire(import.meta.url);
 const request = require('supertest');
@@ -57,7 +58,7 @@ async function createApp(harness) {
       transform: true,
     }),
   );
-  await app.init();
+  await configureApiPlatform(app);
   return app;
 }
 
@@ -67,31 +68,31 @@ test('supply-chain api supports purchasing setup, po lifecycle, receiving, and f
   const app = await createApp(harness);
   const api = request(app.getHttpServer());
 
-  const vendor = (
+  const vendor = unwrapBody(
     await api.post('/api/v1/supply-chain/vendors').send({
       legalEntityId: legalEntity.id,
       name: 'API Vendor',
       code: 'API-VENDOR',
       currency: 'INR',
       paymentTerms: 30,
-    })
-  ).body;
+    }),
+  );
   assert.equal(vendor.status, 'ACTIVE');
 
-  const product = (
+  const product = unwrapBody(
     await api.post('/api/v1/supply-chain/products').send({
       sku: 'API-PROD-1',
       name: 'API Product',
       reorderPoint: 2,
-    })
-  ).body;
+    }),
+  );
 
-  const warehouse = (
+  const warehouse = unwrapBody(
     await api.post('/api/v1/supply-chain/warehouses').send({
       name: 'API Warehouse',
       code: 'API-WH',
-    })
-  ).body;
+    }),
+  );
 
   const replenishment = await api
     .put(`/api/v1/supply-chain/products/${product.id}/replenishment`)
@@ -102,7 +103,7 @@ test('supply-chain api supports purchasing setup, po lifecycle, receiving, and f
     });
   assert.equal(replenishment.status, 200);
 
-  const purchaseOrder = (
+  const purchaseOrder = unwrapBody(
     await api.post('/api/v1/supply-chain/purchase-orders').send({
       vendorId: vendor.id,
       legalEntityId: legalEntity.id,
@@ -114,21 +115,21 @@ test('supply-chain api supports purchasing setup, po lifecycle, receiving, and f
           unitPrice: 1000,
         },
       ],
-    })
-  ).body;
+    }),
+  );
   assert.equal(purchaseOrder.status, 'DRAFT');
 
   const submitted = await api.post(`/api/v1/supply-chain/purchase-orders/${purchaseOrder.id}/submit`);
   assert.equal(submitted.status, 201);
-  assert.equal(submitted.body.status, 'SUBMITTED');
+  assert.equal(unwrapBody(submitted).status, 'SUBMITTED');
 
   const approved = await api.post(`/api/v1/supply-chain/purchase-orders/${purchaseOrder.id}/approve`);
   assert.equal(approved.status, 201);
-  assert.equal(approved.body.status, 'APPROVED');
+  assert.equal(unwrapBody(approved).status, 'APPROVED');
 
   const sent = await api.post(`/api/v1/supply-chain/purchase-orders/${purchaseOrder.id}/send`);
   assert.equal(sent.status, 201);
-  assert.equal(sent.body.status, 'SENT_TO_VENDOR');
+  assert.equal(unwrapBody(sent).status, 'SENT_TO_VENDOR');
 
   const purchaseOrderLineId = harness.state.purchaseOrderLines.find(
     (line) => line.purchaseOrderId === purchaseOrder.id,
@@ -145,7 +146,7 @@ test('supply-chain api supports purchasing setup, po lifecycle, receiving, and f
     ],
   });
   assert.equal(receipt.status, 201);
-  assert.equal(receipt.body.purchaseOrder.status, 'FULLY_RECEIVED');
+  assert.equal(unwrapBody(receipt).purchaseOrder.status, 'FULLY_RECEIVED');
 
   const consume = await api.post('/api/v1/supply-chain/inventory/consume').send({
     productId: product.id,
@@ -154,13 +155,20 @@ test('supply-chain api supports purchasing setup, po lifecycle, receiving, and f
     reason: 'API stock issue',
   });
   assert.equal(consume.status, 201);
-  assert.equal(consume.body.remainingQuantity, '3');
+  assert.equal(unwrapBody(consume).remainingQuantity, '3');
 
   const purchaseOrders = await api
     .get('/api/v1/supply-chain/purchase-orders')
     .set('x-roles', 'viewer');
   assert.equal(purchaseOrders.status, 200);
-  assert.equal(purchaseOrders.body.length, 1);
+  assert.equal(unwrapBody(purchaseOrders).length, 1);
+
+  const crossTenant = await api
+    .get('/api/v1/supply-chain/purchase-orders')
+    .set('x-roles', 'viewer')
+    .set('x-auth-tenant', 'tenant-1')
+    .set('x-tenant-id', 'tenant-2');
+  assert.equal(crossTenant.status, 403);
 
   await app.close();
 });

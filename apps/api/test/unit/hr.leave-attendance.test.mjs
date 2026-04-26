@@ -146,8 +146,8 @@ test('auto-cancel leaves balances untouched and attendance derives overtime with
     employeeId: employee.id,
     timestamp: '2026-04-18T19:30:00.000Z',
   });
-  assert.equal(completed.hoursWorked, '10.5');
-  assert.equal(completed.overtimeHours, '2.5');
+  assert.equal(completed.hoursWorked.toString(), '10.5');
+  assert.equal(completed.overtimeHours.toString(), '2.5');
 
   const corrected = await service.correctAttendance(
     completed.id,
@@ -160,5 +160,5 @@ test('auto-cancel leaves balances untouched and attendance derives overtime with
   );
   assert.equal(corrected.correctedAt instanceof Date, true);
   assert.equal(corrected.correctionReason, 'Badge sync fix');
-  assert.equal(corrected.hoursWorked, '10');
+  assert.equal(corrected.hoursWorked.toString(), '10');
 });

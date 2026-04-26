@@ -12,7 +12,15 @@ type AuditRequest = {
   method: string;
   path: string;
   params?: { id?: string };
-  user?: { userId?: string; tenantId?: string };
+  user?: {
+    userId?: string;
+    tenantId?: string;
+    sessionId?: string;
+    jti?: string;
+    effectiveTenantId?: string;
+    selectedTenantId?: string;
+    actingTenantOverride?: boolean;
+  };
   ip?: string;
   headers?: { "user-agent"?: string };
 };
@@ -73,11 +81,26 @@ export class AuditInterceptor implements NestInterceptor {
                   : null,
                 userId: request.user?.userId || "anonymous",
                 tenantId:
+                  request.user?.effectiveTenantId ||
                   request.user?.tenantId ||
                   this.cls.get<string>("tenantId") ||
                   "system",
                 ipAddress: request.ip,
                 userAgent: request.headers?.["user-agent"] || null,
+                metadata: {
+                  effectiveTenantId:
+                    request.user?.effectiveTenantId ??
+                    this.cls.get<string>("effectiveTenantId") ??
+                    request.user?.tenantId ??
+                    null,
+                  selectedTenantId: request.user?.selectedTenantId ?? null,
+                  actingTenantOverride:
+                    request.user?.actingTenantOverride ??
+                    this.cls.get<boolean>("actingTenantOverride") ??
+                    false,
+                  sessionId: request.user?.sessionId ?? null,
+                  tokenJti: request.user?.jti ?? null,
+                },
                 timestamp: new Date(),
               },
             });
