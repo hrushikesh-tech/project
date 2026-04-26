@@ -14,6 +14,7 @@ import { BiReportStorageService } from "./reports/bi-report-storage.service";
 import { BiReportMailerService } from "./reports/bi-report-mailer.service";
 import { BI_REPORT_QUEUE, BiReportQueue } from "./queue/bi-report.queue";
 import { BiReportProcessor } from "./queue/bi-report.processor";
+import { isWorkerRuntime } from "../runtime/runtime-mode";
 
 @Module({
   imports: [
@@ -33,7 +34,7 @@ import { BiReportProcessor } from "./queue/bi-report.processor";
     BiReportStorageService,
     BiReportMailerService,
     BiReportQueue,
-    BiReportProcessor,
+    ...(isWorkerRuntime() ? [BiReportProcessor] : []),
     {
       provide: APP_FILTER,
       useClass: BiExceptionFilter,

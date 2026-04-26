@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.global.configMapName }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  labels:
+    {{- include "amdox.labels" . | nindent 4 }}
+data:
+  NODE_ENV: {{ .Values.config.nodeEnv | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  CORS_ORIGIN: {{ .Values.config.corsOrigin | quote }}
+  NEXT_PUBLIC_API_URL: {{ .Values.config.nextPublicApiUrl | quote }}
+  ML_SERVICE_URL: {{ .Values.config.mlServiceUrl | quote }}
+  KEYCLOAK_URL: {{ .Values.config.keycloakUrl | quote }}
+  KEYCLOAK_REALM: {{ .Values.config.keycloakRealm | quote }}
+  KEYCLOAK_CLIENT_ID: {{ .Values.config.keycloakClientId | quote }}
+  ELASTICSEARCH_NODE: {{ .Values.config.elasticsearchNode | quote }}
+  SMTP_HOST: {{ .Values.config.smtpHost | quote }}
+  SMTP_PORT: {{ .Values.config.smtpPort | quote }}
+  SMTP_USER: {{ .Values.config.smtpUser | quote }}
+  REPORT_FROM_EMAIL: {{ .Values.config.reportFromEmail | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.otelExporterOtlpEndpoint | quote }}
+  OTEL_SERVICE_NAME: {{ .Values.config.otelServiceName | quote }}
+  AWS_REGION: {{ .Values.config.awsRegion | quote }}
+  AWS_S3_BUCKET: {{ .Values.config.awsS3Bucket | quote }}
+  AWS_S3_ENDPOINT: {{ .Values.config.awsS3Endpoint | quote }}
+  AWS_S3_FORCE_PATH_STYLE: {{ .Values.config.awsS3ForcePathStyle | quote }}
+  BI_REPORT_ARTIFACT_PREFIX: {{ .Values.config.biReportArtifactPrefix | quote }}
+  BI_REPORT_BASE_URL: {{ .Values.config.biReportBaseUrl | quote }}
+  PUPPETEER_EXECUTABLE_PATH: {{ .Values.config.puppeteerExecutablePath | quote }}
+  CHROME_BIN: {{ .Values.config.chromeBin | quote }}
+  OPENEXCHANGE_BASE_CURRENCIES: {{ .Values.config.openexchangeBaseCurrencies | quote }}
+  OPENEXCHANGE_TARGET_CURRENCIES: {{ .Values.config.openexchangeTargetCurrencies | quote }}
+  ML_MODEL_STORAGE_PATH: {{ .Values.config.mlModelStoragePath | quote }}
+  ML_MAX_MAPE_PERCENT: {{ .Values.config.mlMaxMapePercent | quote }}
+  ML_MIN_LSTM_POINTS: {{ .Values.config.mlMinLstmPoints | quote }}
+  ML_FORECAST_HORIZON_DAYS: {{ .Values.config.mlForecastHorizonDays | quote }}

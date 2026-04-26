@@ -9,6 +9,7 @@ import {
   HR_OPERATIONS_QUEUE,
   HrOperationsQueue,
 } from "./queue/hr-operations.queue";
+import { isWorkerRuntime } from "../runtime/runtime-mode";
 
 @Module({
   imports: [
@@ -20,7 +21,7 @@ import {
   providers: [
     HrService,
     HrOperationsQueue,
-    HrOperationsProcessor,
+    ...(isWorkerRuntime() ? [HrOperationsProcessor] : []),
     {
       provide: APP_FILTER,
       useClass: HrExceptionFilter,

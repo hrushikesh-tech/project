@@ -1,0 +1,38 @@
+hosts:
+  web: app.amdox.example
+  api: api.amdox.example
+  auth: auth.amdox.example
+
+ingress:
+  tls:
+    secretName: amdox-prod-tls
+
+config:
+  corsOrigin: https://app.amdox.example
+  nextPublicApiUrl: https://api.amdox.example
+  keycloakUrl: https://auth.amdox.example
+  elasticsearchNode: https://elasticsearch.prod.internal:9200
+  otelExporterOtlpEndpoint: https://otel-collector.prod.internal:4317
+  awsS3Bucket: amdox-erp-assets-prod
+  awsS3Endpoint: https://object-storage.prod.internal
+
+externalServices:
+  keycloak:
+    url: https://auth.amdox.example
+  elasticsearch:
+    url: https://elasticsearch.prod.internal:9200
+  objectStorage:
+    bucket: amdox-erp-assets-prod
+    endpoint: https://object-storage.prod.internal
+  otlp:
+    endpoint: https://otel-collector.prod.internal:4317
+
+web:
+  replicaCount: 3
+
+api:
+  replicaCount: 3
+
+apiWorker:
+  replicaCount: 2
+

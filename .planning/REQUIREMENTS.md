@@ -161,10 +161,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Containerization & Kubernetes (K8S)
 
-- [ ] **K8S-01**: Multi-stage Dockerfiles for api (distroless), web (alpine), ml-service (python slim) — non-root, no shell
-- [ ] **K8S-02**: Helm chart with Deployments, Services, Ingress (TLS), HPA, PDB, NetworkPolicy, ResourceQuota, LimitRange
-- [ ] **K8S-03**: Istio VirtualService for canary deployment (90/10 traffic split)
-- [ ] **K8S-04**: ArgoCD Application manifest with automated sync, self-heal, prune, sync waves
+- [x] **K8S-01**: Multi-stage Dockerfiles for api (distroless), web (alpine), ml-service (python slim) — non-root, no shell
+- [x] **K8S-02**: Helm chart with Deployments, Services, Ingress (TLS), HPA, PDB, NetworkPolicy, ResourceQuota, LimitRange
+- [x] **K8S-03**: Istio VirtualService for canary deployment (90/10 traffic split)
+- [x] **K8S-04**: ArgoCD Application manifest with automated sync, self-heal, prune, sync waves
 
 ### CI/CD (CICD)
 
@@ -254,7 +254,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-01..05 | Phase 13 | Pending |
 | SEC-01..09 | Phase 14 | Pending |
 | TEST-01..05 | Phase 15 | Pending |
-| K8S-01..04 | Phase 16 | Pending |
+| K8S-01..04 | Phase 16 | Completed |
 | CICD-01..04 | Phase 17 | Pending |
 | OBS-01..04 | Phase 18 | Pending |
 | CLOUD-01..03 | Phase 18 | Pending |

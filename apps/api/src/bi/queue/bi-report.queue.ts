@@ -2,6 +2,7 @@ import { InjectQueue } from "@nestjs/bullmq";
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { Queue } from "bullmq";
 import { PrismaService } from "../../prisma/prisma.service";
+import { isWorkerRuntime } from "../../runtime/runtime-mode";
 
 export const BI_REPORT_QUEUE = "bi-reporting";
 export const BI_REPORT_JOB = "schedule-report";
@@ -22,6 +23,10 @@ export class BiReportQueue implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    if (!isWorkerRuntime()) {
+      return;
+    }
+
     try {
       const schedules = await this.prisma.raw.reportSchedule.findMany({
         where: {

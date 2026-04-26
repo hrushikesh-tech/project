@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "amdox.componentName" (dict "root" . "component" "api") }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    {{- include "amdox.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.api.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "amdox.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+      rollout.istio.io/revision: stable
+  template:
+    metadata:
+      labels:
+        {{- include "amdox.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+        rollout.istio.io/revision: stable
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: api
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          command:
+            - node
+            - dist/src/main.js
+          ports:
+            - name: http
+              containerPort: {{ .Values.api.service.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.global.configMapName }}
+            - secretRef:
+                name: {{ .Values.global.secretName }}
+          env:
+            - name: APP_RUNTIME
+              value: api
+            - name: PORT_API
+              value: {{ .Values.api.service.port | quote }}
+            - name: CLUSTER_WORKERS
+              value: "1"
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.api.probes.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.api.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.api.probes.periodSeconds }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.api.probes.path }}
+              port: http
+            initialDelaySeconds: {{ add .Values.api.probes.initialDelaySeconds 15 }}
+            periodSeconds: {{ .Values.api.probes.periodSeconds }}
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+{{- if .Values.api.canary.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "amdox.componentName" (dict "root" . "component" "api-canary") }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    {{- include "amdox.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+    app.kubernetes.io/name: api-canary
+spec:
+  replicas: {{ .Values.api.canary.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "amdox.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+      rollout.istio.io/revision: canary
+  template:
+    metadata:
+      labels:
+        {{- include "amdox.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+        rollout.istio.io/revision: canary
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: api-canary
+          image: "{{ .Values.api.canary.image.repository }}:{{ .Values.api.canary.image.tag }}"
+          imagePullPolicy: {{ .Values.api.canary.image.pullPolicy }}
+          command:
+            - node
+            - dist/src/main.js
+          ports:
+            - name: http
+              containerPort: {{ .Values.api.service.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.global.configMapName }}
+            - secretRef:
+                name: {{ .Values.global.secretName }}
+          env:
+            - name: APP_RUNTIME
+              value: api
+            - name: PORT_API
+              value: {{ .Values.api.service.port | quote }}
+            - name: CLUSTER_WORKERS
+              value: "1"
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.api.probes.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.api.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.api.probes.periodSeconds }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.api.probes.path }}
+              port: http
+            initialDelaySeconds: {{ add .Values.api.probes.initialDelaySeconds 15 }}
+            periodSeconds: {{ .Values.api.probes.periodSeconds }}
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+{{- end }}

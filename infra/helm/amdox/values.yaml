@@ -1,0 +1,246 @@
+nameOverride: ""
+fullnameOverride: ""
+
+global:
+  secretName: amdox-app-secrets
+  configMapName: amdox-app-config
+
+imagePullSecrets: []
+
+hosts:
+  web: web.dev.amdox.local
+  api: api.dev.amdox.local
+  auth: auth.dev.amdox.local
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  tls:
+    enabled: true
+    secretName: amdox-dev-tls
+
+externalServices:
+  database:
+    secretKey: DATABASE_URL
+  redis:
+    secretKey: REDIS_URL
+  keycloak:
+    url: http://keycloak.example.internal
+    secretKey: KEYCLOAK_CLIENT_SECRET
+  elasticsearch:
+    url: http://elasticsearch.example.internal:9200
+  objectStorage:
+    bucket: amdox-erp-assets-dev
+    endpoint: https://object-storage.example.internal
+  otlp:
+    endpoint: http://otel-collector.example.internal:4317
+
+config:
+  nodeEnv: production
+  logLevel: info
+  corsOrigin: https://web.dev.amdox.local
+  nextPublicApiUrl: https://api.dev.amdox.local
+  mlServiceUrl: http://amdox-ml-service:8000
+  keycloakUrl: http://keycloak.example.internal
+  keycloakRealm: amdox-erp
+  keycloakClientId: amdox-api
+  elasticsearchNode: http://elasticsearch.example.internal:9200
+  smtpHost: mailpit
+  smtpPort: "1025"
+  smtpUser: ""
+  reportFromEmail: reports@amdox.local
+  otelExporterOtlpEndpoint: http://otel-collector.example.internal:4317
+  otelServiceName: amdox-backend
+  awsRegion: us-east-1
+  awsS3Bucket: amdox-erp-assets-dev
+  awsS3Endpoint: https://object-storage.example.internal
+  awsS3ForcePathStyle: "false"
+  biReportArtifactPrefix: bi-reports
+  biReportBaseUrl: ""
+  puppeteerExecutablePath: ""
+  chromeBin: ""
+  openexchangeBaseCurrencies: USD
+  openexchangeTargetCurrencies: INR,USD,EUR
+  mlModelStoragePath: /app/artifacts/models
+  mlMaxMapePercent: "20"
+  mlMinLstmPoints: "500"
+  mlForecastHorizonDays: "30"
+
+secretPlaceholders:
+  create: true
+  data:
+    DATABASE_URL: postgres://replace-me
+    REDIS_URL: redis://replace-me
+    KEYCLOAK_CLIENT_SECRET: replace-me
+    OPENEXCHANGE_APP_ID: replace-me
+    AWS_ACCESS_KEY_ID: replace-me
+    AWS_SECRET_ACCESS_KEY: replace-me
+    SMTP_PASS: replace-me
+    KC_BOOTSTRAP_ADMIN_USERNAME: replace-me
+    KC_BOOTSTRAP_ADMIN_PASSWORD: replace-me
+
+web:
+  replicaCount: 2
+  image:
+    repository: amdox/web
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    port: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  probes:
+    path: /
+    initialDelaySeconds: 15
+    periodSeconds: 15
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+  pdb:
+    enabled: true
+    minAvailable: 1
+
+api:
+  replicaCount: 2
+  image:
+    repository: amdox/api
+    tag: latest
+    pullPolicy: IfNotPresent
+  canary:
+    enabled: false
+    replicaCount: 1
+    image:
+      repository: amdox/api
+      tag: canary
+      pullPolicy: IfNotPresent
+    stableWeight: 90
+    canaryWeight: 10
+  service:
+    port: 3001
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  probes:
+    path: /health
+    initialDelaySeconds: 10
+    periodSeconds: 15
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+  pdb:
+    enabled: true
+    minAvailable: 1
+
+apiWorker:
+  replicaCount: 1
+  image:
+    repository: amdox/api
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  command:
+    - node
+    - dist/src/worker.js
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 75
+  pdb:
+    enabled: true
+    minAvailable: 1
+
+mlService:
+  replicaCount: 1
+  image:
+    repository: amdox/ml-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    port: 8000
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  probes:
+    path: /health
+    initialDelaySeconds: 15
+    periodSeconds: 20
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 75
+  pdb:
+    enabled: false
+    minAvailable: 1
+
+cronJobs:
+  fxRefresh:
+    enabled: false
+    schedule: "0 1 * * *"
+    image:
+      repository: amdox/api
+      tag: latest
+      pullPolicy: IfNotPresent
+    command:
+      - node
+      - dist/src/worker.js
+    backoffLimit: 1
+
+networkPolicy:
+  enabled: true
+  dnsPorts:
+    - 53
+  egressPorts:
+    - 80
+    - 443
+    - 5432
+    - 6379
+    - 8080
+    - 9200
+    - 4317
+
+resourceQuota:
+  enabled: true
+  hard:
+    requests.cpu: "3"
+    requests.memory: 4Gi
+    limits.cpu: "6"
+    limits.memory: 8Gi
+    pods: "20"
+
+limitRange:
+  enabled: true
+  default:
+    cpu: 500m
+    memory: 512Mi
+  defaultRequest:
+    cpu: 100m
+    memory: 256Mi
+
+istio:
+  enabled: true

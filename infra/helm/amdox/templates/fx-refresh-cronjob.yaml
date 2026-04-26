@@ -1,0 +1,34 @@
+{{- if .Values.cronJobs.fxRefresh.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "amdox.componentName" (dict "root" . "component" "fx-refresh") }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    {{- include "amdox.labels" . | nindent 4 }}
+    app.kubernetes.io/component: fx-refresh
+spec:
+  schedule: {{ .Values.cronJobs.fxRefresh.schedule | quote }}
+  jobTemplate:
+    spec:
+      backoffLimit: {{ .Values.cronJobs.fxRefresh.backoffLimit }}
+      template:
+        metadata:
+          labels:
+            {{- include "amdox.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: fx-refresh
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: fx-refresh
+              image: "{{ .Values.cronJobs.fxRefresh.image.repository }}:{{ .Values.cronJobs.fxRefresh.image.tag }}"
+              imagePullPolicy: {{ .Values.cronJobs.fxRefresh.image.pullPolicy }}
+              command:
+                {{- toYaml .Values.cronJobs.fxRefresh.command | nindent 16 }}
+              envFrom:
+                - configMapRef:
+                    name: {{ .Values.global.configMapName }}
+                - secretRef:
+                    name: {{ .Values.global.secretName }}
+{{- end }}

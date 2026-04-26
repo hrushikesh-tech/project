@@ -1,0 +1,30 @@
+hosts:
+  web: web.dev.amdox.local
+  api: api.dev.amdox.local
+  auth: auth.dev.amdox.local
+
+ingress:
+  tls:
+    secretName: amdox-dev-tls
+
+config:
+  corsOrigin: https://web.dev.amdox.local
+  nextPublicApiUrl: https://api.dev.amdox.local
+  mlServiceUrl: http://amdox-ml-service:8000
+  keycloakUrl: https://auth.dev.amdox.local
+  elasticsearchNode: http://elasticsearch.dev.internal:9200
+  otelExporterOtlpEndpoint: http://otel-collector.dev.internal:4317
+  awsS3Bucket: amdox-erp-assets-dev
+  awsS3Endpoint: https://object-storage.dev.internal
+
+externalServices:
+  keycloak:
+    url: https://auth.dev.amdox.local
+  elasticsearch:
+    url: http://elasticsearch.dev.internal:9200
+  objectStorage:
+    bucket: amdox-erp-assets-dev
+    endpoint: https://object-storage.dev.internal
+  otlp:
+    endpoint: http://otel-collector.dev.internal:4317
+

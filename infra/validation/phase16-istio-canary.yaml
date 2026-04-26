@@ -1,0 +1,120 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: amdox-api
+  namespace: phase16-validation
+spec:
+  selector:
+    app: amdox-api
+  ports:
+    - name: http
+      port: 3001
+      targetPort: 3001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amdox-api-stable
+  namespace: phase16-validation
+  labels:
+    app: amdox-api
+    rollout.istio.io/revision: stable
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: amdox-api
+      rollout.istio.io/revision: stable
+  template:
+    metadata:
+      labels:
+        app: amdox-api
+        rollout.istio.io/revision: stable
+    spec:
+      containers:
+        - name: http-echo
+          image: hashicorp/http-echo:1.0.0
+          args:
+            - -listen=:3001
+            - -text=stable
+          ports:
+            - containerPort: 3001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amdox-api-canary
+  namespace: phase16-validation
+  labels:
+    app: amdox-api
+    rollout.istio.io/revision: canary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: amdox-api
+      rollout.istio.io/revision: canary
+  template:
+    metadata:
+      labels:
+        app: amdox-api
+        rollout.istio.io/revision: canary
+    spec:
+      containers:
+        - name: http-echo
+          image: hashicorp/http-echo:1.0.0
+          args:
+            - -listen=:3001
+            - -text=canary
+          ports:
+            - containerPort: 3001
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: amdox-api
+  namespace: phase16-validation
+spec:
+  host: amdox-api.phase16-validation.svc.cluster.local
+  subsets:
+    - name: stable
+      labels:
+        rollout.istio.io/revision: stable
+    - name: canary
+      labels:
+        rollout.istio.io/revision: canary
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: amdox-api
+  namespace: phase16-validation
+spec:
+  hosts:
+    - amdox-api.phase16-validation.svc.cluster.local
+  gateways:
+    - mesh
+  http:
+    - route:
+        - destination:
+            host: amdox-api.phase16-validation.svc.cluster.local
+            subset: stable
+          weight: 90
+        - destination:
+            host: amdox-api.phase16-validation.svc.cluster.local
+            subset: canary
+          weight: 10
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: curl
+  namespace: phase16-validation
+spec:
+  containers:
+    - name: curl
+      image: curlimages/curl:8.17.0
+      command:
+        - sh
+        - -c
+        - sleep 3600

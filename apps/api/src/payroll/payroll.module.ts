@@ -10,6 +10,7 @@ import { PayrollProcessor } from "./queue/payroll.processor";
 import { PayslipPdfService } from "./pdf/payslip-pdf.service";
 import { PayslipStorageService } from "./storage/payslip-storage.service";
 import { PayrollLedgerPostingService } from "./posting/payroll-ledger-posting.service";
+import { isWorkerRuntime } from "../runtime/runtime-mode";
 
 @Module({
   imports: [
@@ -24,7 +25,7 @@ import { PayrollLedgerPostingService } from "./posting/payroll-ledger-posting.se
     PayrollEngineService,
     IndiaTaxService,
     PayrollQueue,
-    PayrollProcessor,
+    ...(isWorkerRuntime() ? [PayrollProcessor] : []),
     PayslipPdfService,
     PayslipStorageService,
     PayrollLedgerPostingService,

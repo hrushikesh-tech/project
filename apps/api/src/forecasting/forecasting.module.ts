@@ -8,6 +8,7 @@ import { ForecastingExceptionFilter } from "./forecasting-exception.filter";
 import { ForecastingService } from "./forecasting.service";
 import { FORECASTING_QUEUE, ForecastingQueue } from "./queue/forecasting.queue";
 import { ForecastingProcessor } from "./queue/forecasting.processor";
+import { isWorkerRuntime } from "../runtime/runtime-mode";
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { ForecastingProcessor } from "./queue/forecasting.processor";
     ForecastingClient,
     ForecastingService,
     ForecastingQueue,
-    ForecastingProcessor,
+    ...(isWorkerRuntime() ? [ForecastingProcessor] : []),
     {
       provide: APP_FILTER,
       useClass: ForecastingExceptionFilter,

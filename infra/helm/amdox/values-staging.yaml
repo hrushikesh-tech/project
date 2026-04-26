@@ -1,0 +1,38 @@
+hosts:
+  web: web.staging.amdox.example
+  api: api.staging.amdox.example
+  auth: auth.staging.amdox.example
+
+ingress:
+  tls:
+    secretName: amdox-staging-tls
+
+config:
+  corsOrigin: https://web.staging.amdox.example
+  nextPublicApiUrl: https://api.staging.amdox.example
+  keycloakUrl: https://auth.staging.amdox.example
+  elasticsearchNode: https://elasticsearch.staging.internal:9200
+  otelExporterOtlpEndpoint: https://otel-collector.staging.internal:4317
+  awsS3Bucket: amdox-erp-assets-staging
+  awsS3Endpoint: https://object-storage.staging.internal
+
+externalServices:
+  keycloak:
+    url: https://auth.staging.amdox.example
+  elasticsearch:
+    url: https://elasticsearch.staging.internal:9200
+  objectStorage:
+    bucket: amdox-erp-assets-staging
+    endpoint: https://object-storage.staging.internal
+  otlp:
+    endpoint: https://otel-collector.staging.internal:4317
+
+web:
+  replicaCount: 2
+
+api:
+  replicaCount: 2
+
+apiWorker:
+  replicaCount: 2
+

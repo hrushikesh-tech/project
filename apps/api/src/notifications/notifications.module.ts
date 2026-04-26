@@ -17,6 +17,7 @@ import { InAppChannelService } from "./channels/in-app-channel.service";
 import { EmailChannelService } from "./channels/email-channel.service";
 import { SmsChannelService } from "./channels/sms-channel.service";
 import { WebhookChannelService } from "./channels/webhook-channel.service";
+import { isWorkerRuntime } from "../runtime/runtime-mode";
 
 @Module({
   imports: [
@@ -31,8 +32,7 @@ import { WebhookChannelService } from "./channels/webhook-channel.service";
     TemplateRendererService,
     NotificationDeliveryService,
     NotificationsQueue,
-    NotificationsProcessor,
-    OutboxPollerService,
+    ...(isWorkerRuntime() ? [NotificationsProcessor, OutboxPollerService] : []),
     InAppChannelService,
     EmailChannelService,
     SmsChannelService,
@@ -45,7 +45,7 @@ import { WebhookChannelService } from "./channels/webhook-channel.service";
   exports: [
     NotificationsService,
     NotificationDeliveryService,
-    OutboxPollerService,
+    ...(isWorkerRuntime() ? [OutboxPollerService] : []),
   ],
 })
 export class NotificationsModule {}

@@ -3,6 +3,7 @@ import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CronExpression } from "../../common/schedule/schedule";
+import { isWorkerRuntime } from "../../runtime/runtime-mode";
 
 export const SUPPLY_CHAIN_QUEUE = "supply-chain-operations";
 export const AUTO_REORDER_JOB = "auto-reorder";
@@ -22,6 +23,10 @@ export class SupplyChainQueue implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    if (!isWorkerRuntime()) {
+      return;
+    }
+
     try {
       const tenants = await this.prisma.raw.tenant.findMany({
         where: { deletedAt: null },

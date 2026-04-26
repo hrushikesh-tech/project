@@ -3,6 +3,7 @@ import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { Queue } from "bullmq";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CronExpression } from "../../common/schedule/schedule";
+import { isWorkerRuntime } from "../../runtime/runtime-mode";
 
 export const FORECASTING_QUEUE = "forecasting-operations";
 export const WEEKLY_RETRAIN_JOB = "weekly-retrain";
@@ -22,6 +23,10 @@ export class ForecastingQueue implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    if (!isWorkerRuntime()) {
+      return;
+    }
+
     try {
       const tenants = await this.prisma.raw.tenant.findMany({
         where: { deletedAt: null },

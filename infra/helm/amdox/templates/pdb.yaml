@@ -1,0 +1,71 @@
+{{- if .Values.web.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "amdox.componentName" (dict "root" . "component" "web") }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    {{- include "amdox.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  minAvailable: {{ .Values.web.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "amdox.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+---
+{{- end }}
+{{- if .Values.api.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "amdox.componentName" (dict "root" . "component" "api") }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    {{- include "amdox.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  minAvailable: {{ .Values.api.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "amdox.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+---
+{{- end }}
+{{- if .Values.apiWorker.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "amdox.componentName" (dict "root" . "component" "api-worker") }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    {{- include "amdox.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api-worker
+spec:
+  minAvailable: {{ .Values.apiWorker.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "amdox.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api-worker
+---
+{{- end }}
+{{- if .Values.mlService.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "amdox.componentName" (dict "root" . "component" "ml-service") }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    {{- include "amdox.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ml-service
+spec:
+  minAvailable: {{ .Values.mlService.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "amdox.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ml-service
+{{- end }}

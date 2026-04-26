@@ -1,8 +1,10 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { APP_RUNTIME_MODES } from './runtime/runtime-mode';
 
 async function bootstrap() {
+  process.env.APP_RUNTIME ??= APP_RUNTIME_MODES.api;
   const app = await NestFactory.create(AppModule);
 
   app.useGlobalPipes(

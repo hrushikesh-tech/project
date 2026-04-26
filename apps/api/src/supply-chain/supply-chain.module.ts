@@ -12,6 +12,7 @@ import {
   SupplyChainQueue,
 } from "./queue/supply-chain.queue";
 import { SupplyChainProcessor } from "./queue/supply-chain.processor";
+import { isWorkerRuntime } from "../runtime/runtime-mode";
 
 @Module({
   imports: [
@@ -26,7 +27,7 @@ import { SupplyChainProcessor } from "./queue/supply-chain.processor";
     FifoInventoryService,
     ReorderAutomationService,
     SupplyChainQueue,
-    SupplyChainProcessor,
+    ...(isWorkerRuntime() ? [SupplyChainProcessor] : []),
     {
       provide: APP_FILTER,
       useClass: SupplyChainExceptionFilter,

@@ -1,0 +1,7 @@
+apiVersion: v2
+name: amdox
+description: Application-tier Helm chart for the Amdox ERP workloads
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+

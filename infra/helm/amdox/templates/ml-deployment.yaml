@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "amdox.componentName" (dict "root" . "component" "ml-service") }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    {{- include "amdox.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ml-service
+spec:
+  replicas: {{ .Values.mlService.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "amdox.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ml-service
+  template:
+    metadata:
+      labels:
+        {{- include "amdox.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ml-service
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: ml-service
+          image: "{{ .Values.mlService.image.repository }}:{{ .Values.mlService.image.tag }}"
+          imagePullPolicy: {{ .Values.mlService.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.mlService.service.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.global.configMapName }}
+            - secretRef:
+                name: {{ .Values.global.secretName }}
+          env:
+            - name: PORT_ML
+              value: {{ .Values.mlService.service.port | quote }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.mlService.probes.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.mlService.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.mlService.probes.periodSeconds }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.mlService.probes.path }}
+              port: http
+            initialDelaySeconds: {{ add .Values.mlService.probes.initialDelaySeconds 15 }}
+            periodSeconds: {{ .Values.mlService.probes.periodSeconds }}
+          resources:
+            {{- toYaml .Values.mlService.resources | nindent 12 }}

@@ -14,6 +14,7 @@ import { InvoiceLedgerPostingService } from "./posting/invoice-ledger-posting.se
 import { InvoiceOcrProcessor } from "./queue/invoice-ocr.processor";
 import { INVOICE_OCR_QUEUE } from "./queue/invoice-ocr.queue";
 import { InvoiceStorageService } from "./storage/invoice-storage.service";
+import { isWorkerRuntime } from "../runtime/runtime-mode";
 
 @Module({
   imports: [
@@ -50,7 +51,7 @@ import { InvoiceStorageService } from "./storage/invoice-storage.service";
         tesseractProvider: TesseractOcrProvider,
       ) => [textractProvider, tesseractProvider],
     },
-    InvoiceOcrProcessor,
+    ...(isWorkerRuntime() ? [InvoiceOcrProcessor] : []),
   ],
 })
 export class ApArModule {}

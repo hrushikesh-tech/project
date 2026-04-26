@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "amdox.componentName" (dict "root" . "component" "api-worker") }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    {{- include "amdox.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api-worker
+spec:
+  replicas: {{ .Values.apiWorker.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "amdox.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api-worker
+  template:
+    metadata:
+      labels:
+        {{- include "amdox.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api-worker
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: api-worker
+          image: "{{ .Values.apiWorker.image.repository }}:{{ .Values.apiWorker.image.tag }}"
+          imagePullPolicy: {{ .Values.apiWorker.image.pullPolicy }}
+          command:
+            {{- toYaml .Values.apiWorker.command | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.global.configMapName }}
+            - secretRef:
+                name: {{ .Values.global.secretName }}
+          env:
+            - name: APP_RUNTIME
+              value: worker
+            - name: CLUSTER_WORKERS
+              value: "1"
+          readinessProbe:
+            exec:
+              command:
+                - node
+                - -e
+                - process.exit(0)
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          livenessProbe:
+            exec:
+              command:
+                - node
+                - -e
+                - process.exit(0)
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.apiWorker.resources | nindent 12 }}

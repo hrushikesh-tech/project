@@ -3,6 +3,7 @@ import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CronExpression } from "../../common/schedule/schedule";
+import { isWorkerRuntime } from "../../runtime/runtime-mode";
 
 export const HR_OPERATIONS_QUEUE = "hr-operations";
 export const LEAVE_ACCRUAL_NIGHTLY_JOB = "leave-accrual-nightly";
@@ -23,6 +24,10 @@ export class HrOperationsQueue implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    if (!isWorkerRuntime()) {
+      return;
+    }
+
     try {
       const tenants = await this.prisma.raw.tenant.findMany({
         where: { deletedAt: null },

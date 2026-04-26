@@ -1,0 +1,26 @@
+{{- if .Values.istio.enabled }}
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ include "amdox.fullname" . }}-api
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    {{- include "amdox.labels" . | nindent 4 }}
+spec:
+  hosts:
+    - {{ .Values.hosts.api | quote }}
+  gateways:
+    - mesh
+  http:
+    - route:
+        - destination:
+            host: {{ include "amdox.componentName" (dict "root" . "component" "api") }}
+            subset: stable
+          weight: {{ .Values.api.canary.stableWeight }}
+        - destination:
+            host: {{ include "amdox.componentName" (dict "root" . "component" "api") }}
+            subset: canary
+          weight: {{ .Values.api.canary.canaryWeight }}
+{{- end }}
+

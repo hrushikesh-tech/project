@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "amdox.componentName" (dict "root" . "component" "web") }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    {{- include "amdox.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  replicas: {{ .Values.web.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "amdox.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        {{- include "amdox.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: web
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: web
+          image: "{{ .Values.web.image.repository }}:{{ .Values.web.image.tag }}"
+          imagePullPolicy: {{ .Values.web.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.web.service.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.global.configMapName }}
+            - secretRef:
+                name: {{ .Values.global.secretName }}
+          env:
+            - name: PORT
+              value: {{ .Values.web.service.port | quote }}
+            - name: PORT_WEB
+              value: {{ .Values.web.service.port | quote }}
+            - name: NEXT_TELEMETRY_DISABLED
+              value: "1"
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.web.probes.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.web.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.web.probes.periodSeconds }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.web.probes.path }}
+              port: http
+            initialDelaySeconds: {{ add .Values.web.probes.initialDelaySeconds 10 }}
+            periodSeconds: {{ .Values.web.probes.periodSeconds }}
+          resources:
+            {{- toYaml .Values.web.resources | nindent 12 }}
