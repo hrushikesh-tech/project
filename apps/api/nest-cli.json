@@ -1,5 +1,17 @@
 {
   "language": "ts",
   "sourceRoot": "src",
-  "compilerOptions": { "builder": "swc" }
+  "compilerOptions": {
+    "builder": "swc",
+    "assets": [
+      {
+        "include": "bi/graphql/schema/*.graphql",
+        "outDir": "dist/src"
+      },
+      {
+        "include": "bi/graphql/trusted-operations.json",
+        "outDir": "dist/src"
+      }
+    ]
+  }
 }

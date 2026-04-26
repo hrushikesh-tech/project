@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { createHrHarness } from '../helpers/hr-test-store.mjs';
+import { configureApiPlatform, unwrapBody } from '../helpers/app-platform.mjs';
 
 const require = createRequire(import.meta.url);
 const request = require('supertest');
@@ -53,7 +54,7 @@ async function createApp(harness) {
       transform: true,
     }),
   );
-  await app.init();
+  await configureApiPlatform(app);
   return app;
 }
 
@@ -62,22 +63,22 @@ test('hr api creates employee and department resources and exposes recursive rea
   const app = await createApp(harness);
   const api = request(app.getHttpServer());
 
-  const rootDepartment = (
+  const rootDepartment = unwrapBody(
     await api.post('/api/v1/hr/departments').send({
       name: 'Operations',
       code: 'OPS',
-    })
-  ).body;
+    }),
+  );
 
-  const childDepartment = (
+  const childDepartment = unwrapBody(
     await api.post('/api/v1/hr/departments').send({
       name: 'Support',
       code: 'SUP',
       parentId: rootDepartment.id,
-    })
-  ).body;
+    }),
+  );
 
-  const manager = (
+  const manager = unwrapBody(
     await api.post('/api/v1/hr/employees').send({
       employeeCode: 'MGR-API',
       firstName: 'Mina',
@@ -85,10 +86,10 @@ test('hr api creates employee and department resources and exposes recursive rea
       email: 'mina.manager@amdox.dev',
       hireDate: '2026-04-01T00:00:00.000Z',
       departmentId: rootDepartment.id,
-    })
-  ).body;
+    }),
+  );
 
-  const employee = (
+  const employee = unwrapBody(
     await api.post('/api/v1/hr/employees').send({
       employeeCode: 'EMP-API',
       firstName: 'Eli',
@@ -97,8 +98,8 @@ test('hr api creates employee and department resources and exposes recursive rea
       hireDate: '2026-04-01T00:00:00.000Z',
       departmentId: childDepartment.id,
       managerId: manager.id,
-    })
-  ).body;
+    }),
+  );
 
   const departmentHead = await api.patch(`/api/v1/hr/departments/${childDepartment.id}`).send({
     headId: employee.id,
@@ -108,14 +109,14 @@ test('hr api creates employee and department resources and exposes recursive rea
   const orgChart = await api.get('/api/v1/hr/org-chart').set('x-roles', 'viewer');
   assert.equal(orgChart.status, 200);
   assert.deepEqual(
-    orgChart.body.map((row) => row.depth),
+    unwrapBody(orgChart).map((row) => row.depth),
     [0, 1],
   );
 
   const departmentTree = await api.get('/api/v1/hr/departments/tree').set('x-roles', 'viewer');
   assert.equal(departmentTree.status, 200);
   assert.deepEqual(
-    departmentTree.body.map((row) => row.depth),
+    unwrapBody(departmentTree).map((row) => row.depth),
     [0, 1],
   );
 
@@ -124,7 +125,7 @@ test('hr api creates employee and department resources and exposes recursive rea
     .query({ activeRoster: true })
     .set('x-roles', 'viewer');
   assert.equal(roster.status, 200);
-  assert.equal(roster.body.length, 2);
+  assert.equal(unwrapBody(roster).length, 2);
 
   const crossTenant = await api
     .get('/api/v1/hr/org-chart')

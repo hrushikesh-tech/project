@@ -12,6 +12,7 @@ import {
   MissingReplenishmentConfiguration,
   VendorPurchasingBlocked,
 } from "@amdox/types";
+import { writeApiErrorResponse } from "../common/api/request-context";
 
 @Catch(
   AmbiguousReplenishmentConfiguration,
@@ -26,12 +27,9 @@ export class SupplyChainExceptionFilter implements ExceptionFilter {
     const response = host.switchToHttp().getResponse();
     const request = host.switchToHttp().getRequest();
 
-    response.status(HttpStatus.CONFLICT).json({
-      statusCode: HttpStatus.CONFLICT,
-      error: exception.name,
+    return writeApiErrorResponse(response, request, HttpStatus.CONFLICT, {
+      code: exception.name,
       message: exception.message,
-      path: request.url,
-      timestamp: new Date().toISOString(),
     });
   }
 }

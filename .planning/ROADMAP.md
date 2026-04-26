@@ -193,6 +193,15 @@
 **Requirements:** UI-01, UI-02, UI-03, UI-04, UI-05, UI-06, UI-07, UI-08, UI-09, UI-10, UI-11, UI-12
 **Depends on:** Phase 3, Phase 4, Phase 5, Phase 6, Phase 7, Phase 8, Phase 9, Phase 10, Phase 11
 **UI hint:** yes
+**Plans:** 6 plans
+
+Plans:
+- [ ] `12-01-PLAN.md` — Correct the Next.js 15 baseline, bootstrap route groups/providers, and create the shared UI/test foundation
+- [ ] `12-02-PLAN.md` — Implement Keycloak auth, middleware protection, role-home routing, and the unified hybrid shell
+- [ ] `12-03-PLAN.md` — Deliver reusable tables/forms plus Finance, AP/AR, HR, and Payroll operational screens
+- [ ] `12-04-PLAN.md` — Deliver Supply Chain and Notifications module surfaces, including the inventory heatmap
+- [ ] `12-05-PLAN.md` — Deliver the BI dashboard builder and the bounded D3 Gantt experience
+- [ ] `12-06-PLAN.md` — Close with PWA/offline policy, accessibility/responsive hardening, and final verification
 
 **Success criteria:**
 

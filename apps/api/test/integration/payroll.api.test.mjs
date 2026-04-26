@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { createPayrollHarness } from '../helpers/payroll-test-store.mjs';
+import { configureApiPlatform, unwrapBody } from '../helpers/app-platform.mjs';
 
 const require = createRequire(import.meta.url);
 const request = require('supertest');
@@ -53,7 +54,7 @@ async function createApp(harness) {
       transform: true,
     }),
   );
-  await app.init();
+  await configureApiPlatform(app);
   return app;
 }
 
@@ -104,7 +105,7 @@ test('payroll api manages salary structures and payroll runs with tenant-safe du
     .get(`/api/v1/payroll/salary-structures/${employee.id}`)
     .set('x-roles', 'finance_manager');
   assert.equal(salaryStructure.status, 200);
-  assert.equal(salaryStructure.body.taxRegime, 'NEW');
+  assert.equal(unwrapBody(salaryStructure).taxRegime, 'NEW');
 
   const createdRun = await api.post('/api/v1/payroll/runs').send({
     legalEntityId: legalEntity.id,
@@ -117,18 +118,18 @@ test('payroll api manages salary structures and payroll runs with tenant-safe du
     .get('/api/v1/payroll/runs')
     .set('x-roles', 'finance_manager');
   assert.equal(runs.status, 200);
-  assert.equal(runs.body.length, 1);
+  assert.equal(unwrapBody(runs).length, 1);
 
   const runDetails = await api
-    .get(`/api/v1/payroll/runs/${createdRun.body.id}`)
+    .get(`/api/v1/payroll/runs/${unwrapBody(createdRun).id}`)
     .set('x-roles', 'finance_manager');
   assert.equal(runDetails.status, 200);
 
   const results = await api
-    .get(`/api/v1/payroll/runs/${createdRun.body.id}/results`)
+    .get(`/api/v1/payroll/runs/${unwrapBody(createdRun).id}/results`)
     .set('x-roles', 'finance_manager');
   assert.equal(results.status, 200);
-  assert.equal(results.body.length, 1);
+  assert.equal(unwrapBody(results).length, 1);
 
   const duplicateRun = await api.post('/api/v1/payroll/runs').send({
     legalEntityId: legalEntity.id,

@@ -2,11 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { createAparHarness } from '../helpers/apar-test-store.mjs';
+import { configureApiPlatform, unwrapBody } from '../helpers/app-platform.mjs';
 
 const require = createRequire(import.meta.url);
 const request = require('supertest');
 const { Test } = require('@nestjs/testing');
 const { ValidationPipe } = require('@nestjs/common');
+const { Reflector } = require('@nestjs/core');
 const { ConfigModule, ConfigService } = require('@nestjs/config');
 const { ClsModule, ClsService } = require('nestjs-cls');
 const { getQueueToken } = require('@nestjs/bullmq');
@@ -25,6 +27,8 @@ const { InvoiceStorageService } = require('../../dist/src/ap-ar/storage/invoice-
 const { InvoiceOcrProcessor } = require('../../dist/src/ap-ar/queue/invoice-ocr.processor.js');
 const { OCR_PROVIDERS } = require('../../dist/src/ap-ar/ocr/ocr.provider.js');
 const { INVOICE_OCR_QUEUE } = require('../../dist/src/ap-ar/queue/invoice-ocr.queue.js');
+const { TenantGuard } = require('../../dist/src/common/guards/tenant.guard.js');
+const { RolesGuard } = require('../../dist/src/common/guards/roles.guard.js');
 
 async function createApp(harness) {
   const queueJobs = [];
@@ -157,6 +161,24 @@ async function createApp(harness) {
   moduleBuilder.overrideProvider(ConfigService).useValue(configService);
   const moduleRef = await moduleBuilder.compile();
   const app = moduleRef.createNestApplication();
+  app.use((req, _res, next) => {
+    const rolesHeader = req.headers['x-roles'];
+    req.user = {
+      userId: typeof req.headers['x-user-id'] === 'string' ? req.headers['x-user-id'] : 'finance-user',
+      email: 'finance@amdox.dev',
+      roles:
+        typeof rolesHeader === 'string'
+          ? rolesHeader.split(',').map((value) => value.trim()).filter(Boolean)
+          : ['finance_manager'],
+      tenantId:
+        typeof req.headers['x-auth-tenant'] === 'string' ? req.headers['x-auth-tenant'] : 'tenant-1',
+    };
+    next();
+  });
+  app.useGlobalGuards(
+    new TenantGuard(harness.cls, new Reflector()),
+    new RolesGuard(new Reflector()),
+  );
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -164,7 +186,7 @@ async function createApp(harness) {
       transform: true,
     }),
   );
-  await app.init();
+  await configureApiPlatform(app);
 
   const processor = new InvoiceOcrProcessor(moduleRef.get(ApArService), storageService, ocrProviders);
 
@@ -251,14 +273,17 @@ test('AP/AR API uploads invoices, processes OCR, posts matched AP, emits mismatc
   assert.equal(mismatchedUpload.status, 201);
   assert.equal(queueJobs.length, 2);
 
+  const matchedUploadBody = unwrapBody(matchedUpload);
+  const mismatchedUploadBody = unwrapBody(mismatchedUpload);
+
   await processor.process({ data: queueJobs[0].payload });
   await processor.process({ data: queueJobs[1].payload });
 
   const matchedInvoice = harness.state.invoices.find(
-    (item) => item.id === matchedUpload.body.invoiceId,
+    (item) => item.id === matchedUploadBody.invoiceId,
   );
   const mismatchedInvoice = harness.state.invoices.find(
-    (item) => item.id === mismatchedUpload.body.invoiceId,
+    (item) => item.id === mismatchedUploadBody.invoiceId,
   );
 
   assert.equal(matchedInvoice.status, 'POSTED');
@@ -278,8 +303,19 @@ test('AP/AR API uploads invoices, processes OCR, posts matched AP, emits mismatc
   });
 
   assert.equal(agingReport.status, 200);
-  assert.equal(agingReport.body.summary.current, '1000');
-  assert.equal(agingReport.body.summary.bucket60, '1300');
+  assert.equal(unwrapBody(agingReport).summary.current, '1000');
+  assert.equal(unwrapBody(agingReport).summary.bucket60, '1300');
+
+  const crossTenant = await api
+    .get('/api/v1/ap-ar/reports/aging')
+    .query({
+      legalEntityId: entity.id,
+      type: 'PAYABLE',
+      asOfDate: '2026-04-15T00:00:00.000Z',
+    })
+    .set('x-auth-tenant', 'tenant-1')
+    .set('x-tenant-id', 'tenant-2');
+  assert.equal(crossTenant.status, 403);
 
   await app.close();
 });

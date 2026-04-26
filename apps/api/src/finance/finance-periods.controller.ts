@@ -1,11 +1,13 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { CreateFiscalPeriodDto } from './dto/create-fiscal-period.dto';
 import { LegalEntityScopeQueryDto } from './dto/finance-query.dto';
 import { FinanceService } from './finance.service';
 
-@Controller('api/v1/finance/periods')
+@ApiTags('finance')
+@Controller({ path: 'finance/periods', version: '1' })
 export class FinancePeriodsController {
   constructor(private readonly financeService: FinanceService) {}
 

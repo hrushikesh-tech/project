@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import {
-  BadRequestException,
   Injectable,
+  BadRequestException,
   NotFoundException,
   PayloadTooLargeException,
+  ServiceUnavailableException,
+  Optional,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
@@ -30,6 +32,7 @@ import {
   INVOICE_OCR_QUEUE,
   InvoiceOcrJobPayload,
 } from './queue/invoice-ocr.queue';
+import { areBackgroundQueuesEnabled } from '../common/queue/queue-runtime';
 
 export interface UploadedInvoiceFile {
   buffer: Buffer;
@@ -56,11 +59,13 @@ export class ApArService {
     private readonly threeWayMatchService: ThreeWayMatchService,
     private readonly invoiceLedgerPostingService: InvoiceLedgerPostingService,
     private readonly agingReportService: AgingReportService,
+    @Optional()
     @InjectQueue(INVOICE_OCR_QUEUE)
-    private readonly invoiceOcrQueue: Queue<InvoiceOcrJobPayload>,
+    private readonly invoiceOcrQueue?: Queue<InvoiceOcrJobPayload>,
   ) {}
 
   async uploadInvoice(dto: UploadInvoiceDto, file: UploadedInvoiceFile) {
+    this.assertInvoiceOcrQueueAvailable();
     const tenantId = this.requireTenantId();
     this.assertUploadPresent(file);
     const detectedMimeType = await this.detectMimeType(file);
@@ -383,6 +388,14 @@ export class ApArService {
       throw new BadRequestException('AP/AR endpoints require a tenant-scoped request context.');
     }
     return tenantId;
+  }
+
+  private assertInvoiceOcrQueueAvailable() {
+    if (!areBackgroundQueuesEnabled() || !this.invoiceOcrQueue) {
+      throw new ServiceUnavailableException(
+        'Invoice OCR processing is unavailable because Redis-backed background queues are disabled.',
+      );
+    }
   }
 
   private assertUploadPresent(file?: UploadedInvoiceFile | null): asserts file is UploadedInvoiceFile {

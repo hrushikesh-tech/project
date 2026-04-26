@@ -51,6 +51,9 @@ test('tenant guard stores the concrete tenant id in CLS', () => {
   );
 
   const context = {
+    getType() {
+      return 'http';
+    },
     getHandler() {
       return null;
     },
@@ -72,7 +75,11 @@ test('tenant guard stores the concrete tenant id in CLS', () => {
   };
 
   assert.equal(guard.canActivate(context), true);
-  assert.deepEqual(writes, [['tenantId', 'tenant-456']]);
+  assert.deepEqual(writes, [
+    ['tenantId', 'tenant-456'],
+    ['effectiveTenantId', 'tenant-456'],
+    ['actingTenantOverride', false],
+  ]);
 });
 
 test('tenant guard rejects authenticated requests without tenant context', () => {
@@ -88,6 +95,9 @@ test('tenant guard rejects authenticated requests without tenant context', () =>
   );
 
   const context = {
+    getType() {
+      return 'http';
+    },
     getHandler() {
       return null;
     },

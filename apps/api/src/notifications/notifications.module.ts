@@ -2,6 +2,10 @@ import { Module } from "@nestjs/common";
 import { APP_FILTER } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
 import { BullModule } from "@nestjs/bullmq";
+import {
+  areBackgroundQueuesEnabled,
+  createQueueProvider,
+} from "../common/queue/queue-runtime";
 import { NotificationsController } from "./notifications.controller";
 import { NotificationsService } from "./notifications.service";
 import { NotificationsExceptionFilter } from "./notifications-exception.filter";
@@ -18,12 +22,18 @@ import { EmailChannelService } from "./channels/email-channel.service";
 import { SmsChannelService } from "./channels/sms-channel.service";
 import { WebhookChannelService } from "./channels/webhook-channel.service";
 
+const BACKGROUND_QUEUES_ENABLED = areBackgroundQueuesEnabled();
+
 @Module({
   imports: [
     ConfigModule,
-    BullModule.registerQueue({
-      name: NOTIFICATIONS_QUEUE,
-    }),
+    ...(BACKGROUND_QUEUES_ENABLED
+      ? [
+          BullModule.registerQueue({
+            name: NOTIFICATIONS_QUEUE,
+          }),
+        ]
+      : []),
   ],
   controllers: [NotificationsController],
   providers: [
@@ -31,7 +41,9 @@ import { WebhookChannelService } from "./channels/webhook-channel.service";
     TemplateRendererService,
     NotificationDeliveryService,
     NotificationsQueue,
-    NotificationsProcessor,
+    ...(BACKGROUND_QUEUES_ENABLED
+      ? [NotificationsProcessor]
+      : [createQueueProvider(NOTIFICATIONS_QUEUE)]),
     OutboxPollerService,
     InAppChannelService,
     EmailChannelService,

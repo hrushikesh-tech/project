@@ -2,6 +2,10 @@ import { Module } from "@nestjs/common";
 import { APP_FILTER } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
 import { BullModule } from "@nestjs/bullmq";
+import {
+  areBackgroundQueuesEnabled,
+  createQueueProvider,
+} from "../common/queue/queue-runtime";
 import { BiController } from "./bi.controller";
 import { BiService } from "./bi.service";
 import { BiExceptionFilter } from "./bi-exception.filter";
@@ -15,12 +19,18 @@ import { BiReportMailerService } from "./reports/bi-report-mailer.service";
 import { BI_REPORT_QUEUE, BiReportQueue } from "./queue/bi-report.queue";
 import { BiReportProcessor } from "./queue/bi-report.processor";
 
+const BACKGROUND_QUEUES_ENABLED = areBackgroundQueuesEnabled();
+
 @Module({
   imports: [
     ConfigModule,
-    BullModule.registerQueue({
-      name: BI_REPORT_QUEUE,
-    }),
+    ...(BACKGROUND_QUEUES_ENABLED
+      ? [
+          BullModule.registerQueue({
+            name: BI_REPORT_QUEUE,
+          }),
+        ]
+      : []),
   ],
   controllers: [BiController],
   providers: [
@@ -33,7 +43,9 @@ import { BiReportProcessor } from "./queue/bi-report.processor";
     BiReportStorageService,
     BiReportMailerService,
     BiReportQueue,
-    BiReportProcessor,
+    ...(BACKGROUND_QUEUES_ENABLED
+      ? [BiReportProcessor]
+      : [createQueueProvider(BI_REPORT_QUEUE)]),
     {
       provide: APP_FILTER,
       useClass: BiExceptionFilter,

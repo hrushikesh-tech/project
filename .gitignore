@@ -58,3 +58,11 @@ __pycache__/
 .pytest_cache/
 apps/ml-service/.venv/
 apps/api/scratch/
+.tools/
+apps/web/.chrome-lighthouse/
+apps/web/.tmp-lighthouse/
+apps/web/lighthouse-reports/
+apps/web/test-results/
+apps/web/tsconfig.tsbuildinfo
+tests/load/last-summary.json
+scripts/security/bin/

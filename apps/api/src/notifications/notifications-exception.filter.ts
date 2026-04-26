@@ -8,6 +8,7 @@ import {
   NotificationActorRequiredException,
   NotificationAdminAccessException,
 } from "@amdox/types";
+import { writeApiErrorResponse } from "../common/api/request-context";
 
 @Catch(NotificationActorRequiredException, NotificationAdminAccessException)
 export class NotificationsExceptionFilter implements ExceptionFilter {
@@ -19,12 +20,9 @@ export class NotificationsExceptionFilter implements ExceptionFilter {
         ? HttpStatus.FORBIDDEN
         : HttpStatus.UNAUTHORIZED;
 
-    response.status(status).json({
-      statusCode: status,
-      error: exception.name,
+    return writeApiErrorResponse(response, request, status, {
+      code: exception.name,
       message: exception.message,
-      path: request.url,
-      timestamp: new Date().toISOString(),
     });
   }
 }

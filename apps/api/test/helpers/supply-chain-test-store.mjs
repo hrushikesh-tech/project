@@ -1,8 +1,8 @@
 import { createRequire } from 'node:module';
 import { createAparHarness } from './apar-test-store.mjs';
+import { Prisma } from './prisma-client.mjs';
 
 const require = createRequire(import.meta.url);
-const { Prisma } = require('@amdox/db');
 
 export function createSupplyChainHarness(options = {}) {
   const base = createAparHarness(options);
@@ -883,5 +883,111 @@ export function createSupplyChainHarness(options = {}) {
     insertInventoryItem,
     insertCostLayer,
     insertInventoryMovement,
+  };
+}
+
+export function seedInventoryHarness(harness, overrides = {}) {
+  const legalEntity =
+    overrides.legalEntity ??
+    harness.insertLegalEntity({
+      code: overrides.legalEntityCode ?? 'SC',
+      name: overrides.legalEntityName ?? 'Supply Chain Test Entity',
+      baseCurrency: overrides.baseCurrency ?? 'INR',
+    });
+  const vendor =
+    overrides.vendor ??
+    harness.insertVendor({
+      legalEntityId: legalEntity.id,
+      name: overrides.vendorName ?? 'Seed Vendor',
+      code: overrides.vendorCode ?? 'VENDOR-001',
+    });
+  const warehouse =
+    overrides.warehouse ??
+    harness.insertWarehouse({
+      name: overrides.warehouseName ?? 'Main Warehouse',
+      code: overrides.warehouseCode ?? 'WH-MAIN',
+    });
+  const product =
+    overrides.product ??
+    harness.insertProduct({
+      sku: overrides.sku ?? 'SKU-001',
+      name: overrides.productName ?? 'Seed Product',
+      reorderPoint: overrides.reorderPoint ?? 10,
+    });
+  const replenishment =
+    overrides.replenishment ??
+    harness.insertReplenishmentSetting({
+      legalEntityId: legalEntity.id,
+      vendorId: vendor.id,
+      productId: product.id,
+      reorderQuantity: overrides.reorderQuantity ?? 25,
+    });
+  const purchaseOrder =
+    overrides.purchaseOrder ??
+    harness.insertPurchaseOrder({
+      legalEntityId: legalEntity.id,
+      vendorId: vendor.id,
+      status: overrides.purchaseOrderStatus ?? 'APPROVED',
+      lines: [
+        {
+          productId: product.id,
+          quantity: overrides.purchaseOrderQuantity ?? 25,
+          unitPrice: overrides.purchaseOrderUnitPrice ?? 1000,
+        },
+      ],
+    });
+  const goodsReceipt =
+    overrides.goodsReceipt ??
+    harness.insertGoodsReceipt({
+      legalEntityId: legalEntity.id,
+      warehouseId: warehouse.id,
+      purchaseOrderId: purchaseOrder.id,
+      lines: [
+        {
+          purchaseOrderLineId: harness.state.purchaseOrderLines[0]?.id,
+          quantityReceived: overrides.receiptQuantity ?? 25,
+        },
+      ],
+    });
+  const inventoryItem =
+    overrides.inventoryItem ??
+    harness.insertInventoryItem({
+      productId: product.id,
+      warehouseId: warehouse.id,
+      quantity: overrides.onHandQuantity ?? 25,
+    });
+  const costLayer =
+    overrides.costLayer ??
+    harness.insertCostLayer({
+      productId: product.id,
+      warehouseId: warehouse.id,
+      quantity: overrides.costLayerQuantity ?? 25,
+      remainingQuantity: overrides.remainingQuantity ?? 25,
+      unitCost: overrides.costPerUnit ?? 1000,
+    });
+  const movement =
+    overrides.movement ??
+    harness.insertInventoryMovement({
+      legalEntityId: legalEntity.id,
+      productId: product.id,
+      warehouseId: warehouse.id,
+      purchaseOrderId: purchaseOrder.id,
+      goodsReceiptId: goodsReceipt.id,
+      costLayerId: costLayer.id,
+      quantity: overrides.movementQuantity ?? 25,
+      unitCost: overrides.costPerUnit ?? 1000,
+    });
+
+  return {
+    legalEntity,
+    vendor,
+    warehouse,
+    product,
+    replenishment,
+    purchaseOrder,
+    goodsReceipt,
+    inventoryItem,
+    costLayer,
+    movement,
   };
 }

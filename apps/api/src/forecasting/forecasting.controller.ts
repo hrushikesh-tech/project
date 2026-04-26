@@ -7,12 +7,14 @@ import {
   Post,
   Req,
 } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import { Roles } from "../common/decorators/roles.decorator";
 import { ForecastingService } from "./forecasting.service";
 
 type RequestUser = { tenantId?: string; roles?: string[] };
 
-@Controller("api/v1/forecasting")
+@ApiTags("forecasting")
+@Controller({ path: "forecasting", version: "1" })
 export class ForecastingController {
   constructor(private readonly forecastingService: ForecastingService) {}
 

@@ -6,6 +6,8 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
+    "security:secrets": "powershell -ExecutionPolicy Bypass -File scripts/security/run-trufflehog.ps1",
+    "test:load": "powershell -ExecutionPolicy Bypass -File tests/load/run-k6.ps1",
     "typecheck": "turbo run typecheck",
     "prepare": "husky"
   },

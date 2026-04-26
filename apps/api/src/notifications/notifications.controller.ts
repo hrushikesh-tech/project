@@ -9,6 +9,7 @@ import {
   Query,
   Req,
 } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import { Roles } from "../common/decorators/roles.decorator";
 import { RequestUser } from "../common/interfaces/request-user.interface";
 import { NotificationsService } from "./notifications.service";
@@ -17,7 +18,8 @@ import { UpdateNotificationPreferencesDto } from "./dto/update-notification-pref
 import { UpsertNotificationTemplateDto } from "./dto/upsert-notification-template.dto";
 import { UpsertWebhookConfigDto } from "./dto/upsert-webhook-config.dto";
 
-@Controller("api/v1/notifications")
+@ApiTags("notifications")
+@Controller({ path: "notifications", version: "1" })
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 

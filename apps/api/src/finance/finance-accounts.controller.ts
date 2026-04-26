@@ -1,9 +1,11 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { FinanceService } from './finance.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { LegalEntityScopeQueryDto } from './dto/finance-query.dto';
 
-@Controller('api/v1/finance/accounts')
+@ApiTags('finance')
+@Controller({ path: 'finance/accounts', version: '1' })
 export class FinanceAccountsController {
   constructor(private readonly financeService: FinanceService) {}
 

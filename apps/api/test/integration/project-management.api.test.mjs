@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { createProjectManagementHarness } from "../helpers/project-management-test-store.mjs";
+import { configureApiPlatform, unwrapBody } from "../helpers/app-platform.mjs";
 
 const require = createRequire(import.meta.url);
 const request = require("supertest");
@@ -76,7 +77,7 @@ async function createApp(harness) {
       transform: true,
     }),
   );
-  await app.init();
+  await configureApiPlatform(app);
   return app;
 }
 
@@ -98,7 +99,7 @@ test("project management api supports CRUD, milestone updates, and dependency va
   const app = await createApp(harness);
   const api = request(app.getHttpServer());
 
-  const project = (
+  const project = unwrapBody(
     await api.post("/api/v1/projects").send({
       code: "PM-API",
       name: "Project API",
@@ -106,34 +107,34 @@ test("project management api supports CRUD, milestone updates, and dependency va
       budget: 100000,
       actualCost: 90000,
       status: "ACTIVE",
-    })
-  ).body;
+    }),
+  );
   assert.equal(project.code, "PM-API");
 
-  const milestone = (
+  const milestone = unwrapBody(
     await api.post("/api/v1/projects/milestones").send({
       projectId: project.id,
       name: "Release",
       dueDate: "2026-06-01T00:00:00.000Z",
-    })
-  ).body;
+    }),
+  );
 
-  const taskOne = (
+  const taskOne = unwrapBody(
     await api.post("/api/v1/projects/tasks").send({
       projectId: project.id,
       milestoneId: milestone.id,
       name: "Backend",
       assigneeId: manager.id,
-    })
-  ).body;
-  const taskTwo = (
+    }),
+  );
+  const taskTwo = unwrapBody(
     await api.post("/api/v1/projects/tasks").send({
       projectId: project.id,
       milestoneId: milestone.id,
       name: "Frontend",
       assigneeId: manager.id,
-    })
-  ).body;
+    }),
+  );
 
   const dependency = await api.post("/api/v1/projects/dependencies").send({
     taskId: taskTwo.id,
@@ -151,11 +152,11 @@ test("project management api supports CRUD, milestone updates, and dependency va
 
   await api.patch(`/api/v1/projects/tasks/${taskOne.id}`).send({ status: "DONE" });
   let milestoneState = await api.get(`/api/v1/projects/milestones/${milestone.id}`);
-  assert.equal(milestoneState.body.status, "PENDING");
+  assert.equal(unwrapBody(milestoneState).status, "PENDING");
 
   await api.patch(`/api/v1/projects/tasks/${taskTwo.id}`).send({ status: "DONE" });
   milestoneState = await api.get(`/api/v1/projects/milestones/${milestone.id}`);
-  assert.equal(milestoneState.body.status, "COMPLETED");
+  assert.equal(unwrapBody(milestoneState).status, "COMPLETED");
 
   const projectUpdate = await api.patch(`/api/v1/projects/${project.id}`).send({
     actualCost: 110000,
@@ -166,6 +167,12 @@ test("project management api supports CRUD, milestone updates, and dependency va
     harness.state.notifications.map((entry) => entry.userId).sort(),
     [managerUser.id, tenantAdmin.id].sort(),
   );
+
+  const crossTenant = await api
+    .get(`/api/v1/projects/${project.id}`)
+    .set("x-auth-tenant", "tenant-1")
+    .set("x-tenant-id", "tenant-2");
+  assert.equal(crossTenant.status, 403);
 
   await app.close();
 });

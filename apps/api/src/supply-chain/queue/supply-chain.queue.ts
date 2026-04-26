@@ -1,8 +1,9 @@
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit, Optional } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CronExpression } from "../../common/schedule/schedule";
+import { areBackgroundQueuesEnabled } from "../../common/queue/queue-runtime";
 
 export const SUPPLY_CHAIN_QUEUE = "supply-chain-operations";
 export const AUTO_REORDER_JOB = "auto-reorder";
@@ -17,11 +18,19 @@ export class SupplyChainQueue implements OnModuleInit {
 
   constructor(
     private readonly prisma: PrismaService,
+    @Optional()
     @InjectQueue(SUPPLY_CHAIN_QUEUE)
-    private readonly queue: Queue<SupplyChainJobPayload>,
+    private readonly queue?: Queue<SupplyChainJobPayload>,
   ) {}
 
   async onModuleInit() {
+    if (!areBackgroundQueuesEnabled() || !this.queue) {
+      this.logger.warn(
+        "Supply-chain queue is disabled because Redis-backed background queues are unavailable.",
+      );
+      return;
+    }
+
     try {
       const tenants = await this.prisma.raw.tenant.findMany({
         where: { deletedAt: null },

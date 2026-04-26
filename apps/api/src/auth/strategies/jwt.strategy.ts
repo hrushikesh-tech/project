@@ -6,6 +6,16 @@ import { passportJwtSecret } from 'jwks-rsa';
 import { RequestUser } from '../../common/interfaces/request-user.interface';
 import { AuthService } from '../auth.service';
 
+const SUPER_ADMIN_EXPANDED_ROLES = [
+  'super_admin',
+  'tenant_admin',
+  'finance_manager',
+  'hr_manager',
+  'supply_chain_manager',
+  'project_manager',
+  'viewer',
+] as const;
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
@@ -34,7 +44,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Token has been revoked');
     }
 
-    const roles = Array.isArray(payload.realm_access?.roles) ? payload.realm_access.roles : [];
+    const baseRoles = Array.isArray(payload.realm_access?.roles)
+      ? payload.realm_access.roles
+      : [];
+    const roles = baseRoles.includes('super_admin')
+      ? [...new Set([...baseRoles, ...SUPER_ADMIN_EXPANDED_ROLES])]
+      : baseRoles;
     const tenantClaim = Array.isArray(payload.tenant_id) ? payload.tenant_id[0] : payload.tenant_id;
     const tenantId =
       typeof tenantClaim === 'string' && tenantClaim.trim().length > 0
@@ -46,6 +61,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       email: payload.email,
       roles,
       tenantId,
+      sessionId: payload.sid ?? payload.session_state,
+      jti: payload.jti,
     };
   }
 }

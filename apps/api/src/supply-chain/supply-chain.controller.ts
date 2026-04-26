@@ -9,6 +9,7 @@ import {
   Query,
   Req,
 } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import { Roles } from "../common/decorators/roles.decorator";
 import { SupplyChainService } from "./supply-chain.service";
 import { GoodsReceiptService } from "./receiving/goods-receipt.service";
@@ -23,10 +24,12 @@ import { PurchaseOrderQueryDto } from "./dto/purchase-order-query.dto";
 import { TransitionPurchaseOrderDto } from "./dto/transition-purchase-order.dto";
 import { CreateGoodsReceiptDto } from "./dto/create-goods-receipt.dto";
 import { ConsumeInventoryDto } from "./dto/consume-inventory.dto";
+import { EntityIdPipe } from "../common/validation/entity-id.pipe";
 
 type RequestUser = { userId?: string; roles?: string[] };
 
-@Controller("api/v1/supply-chain")
+@ApiTags("supply-chain")
+@Controller({ path: "supply-chain", version: "1" })
 export class SupplyChainController {
   constructor(
     private readonly supplyChainService: SupplyChainService,
@@ -48,7 +51,7 @@ export class SupplyChainController {
 
   @Patch("vendors/:id")
   @Roles("supply_chain_manager", "tenant_admin")
-  updateVendor(@Param("id") id: string, @Body() dto: UpdateVendorDto) {
+  updateVendor(@Param("id", EntityIdPipe) id: string, @Body() dto: UpdateVendorDto) {
     return this.supplyChainService.updateVendor(id, dto);
   }
 
@@ -79,7 +82,7 @@ export class SupplyChainController {
   @Put("products/:id/replenishment")
   @Roles("supply_chain_manager", "tenant_admin")
   upsertReplenishmentSetting(
-    @Param("id") productId: string,
+    @Param("id", EntityIdPipe) productId: string,
     @Body() dto: UpsertReplenishmentSettingDto,
   ) {
     return this.supplyChainService.upsertReplenishmentSetting(productId, dto);
@@ -87,7 +90,7 @@ export class SupplyChainController {
 
   @Get("products/:id/replenishment")
   @Roles("supply_chain_manager", "tenant_admin", "viewer")
-  getReplenishmentSetting(@Param("id") productId: string) {
+  getReplenishmentSetting(@Param("id", EntityIdPipe) productId: string) {
     return this.supplyChainService.getReplenishmentSettings(productId);
   }
 
@@ -111,14 +114,14 @@ export class SupplyChainController {
 
   @Get("purchase-orders/:id")
   @Roles("supply_chain_manager", "tenant_admin", "viewer")
-  getPurchaseOrder(@Param("id") id: string) {
+  getPurchaseOrder(@Param("id", EntityIdPipe) id: string) {
     return this.supplyChainService.getPurchaseOrder(id);
   }
 
   @Post("purchase-orders/:id/submit")
   @Roles("supply_chain_manager", "tenant_admin")
   submitPurchaseOrder(
-    @Param("id") id: string,
+    @Param("id", EntityIdPipe) id: string,
     @Req() request: { user?: RequestUser },
   ) {
     return this.supplyChainService.submitPurchaseOrder(
@@ -130,7 +133,7 @@ export class SupplyChainController {
   @Post("purchase-orders/:id/approve")
   @Roles("supply_chain_manager", "tenant_admin")
   approvePurchaseOrder(
-    @Param("id") id: string,
+    @Param("id", EntityIdPipe) id: string,
     @Req() request: { user?: RequestUser },
   ) {
     return this.supplyChainService.approvePurchaseOrder(
@@ -142,7 +145,7 @@ export class SupplyChainController {
   @Post("purchase-orders/:id/reject")
   @Roles("supply_chain_manager", "tenant_admin")
   rejectPurchaseOrder(
-    @Param("id") id: string,
+    @Param("id", EntityIdPipe) id: string,
     @Body() dto: TransitionPurchaseOrderDto,
     @Req() request: { user?: RequestUser },
   ) {
@@ -155,14 +158,14 @@ export class SupplyChainController {
 
   @Post("purchase-orders/:id/return-to-draft")
   @Roles("supply_chain_manager", "tenant_admin")
-  returnRejectedPurchaseOrderToDraft(@Param("id") id: string) {
+  returnRejectedPurchaseOrderToDraft(@Param("id", EntityIdPipe) id: string) {
     return this.supplyChainService.returnRejectedPurchaseOrderToDraft(id);
   }
 
   @Post("purchase-orders/:id/send")
   @Roles("supply_chain_manager", "tenant_admin")
   sendPurchaseOrder(
-    @Param("id") id: string,
+    @Param("id", EntityIdPipe) id: string,
     @Req() request: { user?: RequestUser },
   ) {
     return this.supplyChainService.sendPurchaseOrderToVendor(

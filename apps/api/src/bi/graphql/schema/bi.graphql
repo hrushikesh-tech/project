@@ -1,0 +1,86 @@
+scalar JSON
+
+enum BiMetricKey {
+  revenue_by_month
+  expense_by_category
+  headcount_by_department
+  inventory_value_by_warehouse
+  po_approval_cycle_time
+  leave_utilisation_by_type
+  project_budget_vs_actual
+  demand_forecast_accuracy
+}
+
+input BiMetricFiltersInput {
+  startDate: String
+  endDate: String
+  asOfDate: String
+  legalEntityId: String
+  warehouseId: String
+  departmentId: String
+  productId: String
+  projectStatus: String
+  topN: Int
+}
+
+type BiMetricSummary {
+  value: Float!
+  label: String!
+  unit: String
+}
+
+type BiMetricPoint {
+  key: String!
+  label: String!
+  value: Float!
+  secondaryValue: Float
+  metadata: JSON
+}
+
+type BiMetricResult {
+  metricKey: BiMetricKey!
+  generatedAt: String!
+  summary: BiMetricSummary!
+  points: [BiMetricPoint!]!
+}
+
+type BiWidget {
+  id: ID!
+  title: String!
+  type: String!
+  metricKey: BiMetricKey!
+  position: JSON
+  config: JSON
+  refreshEnabled: Boolean!
+  sortOrder: Int!
+  metric(filters: BiMetricFiltersInput): BiMetricResult!
+}
+
+type BiDashboard {
+  id: ID!
+  title: String!
+  description: String
+  isPublic: Boolean!
+  layout: JSON
+  defaultFilters: JSON
+  ownerId: ID!
+  widgets: [BiWidget!]!
+}
+
+type BiDashboardMetricData {
+  widget: BiWidget!
+  result: BiMetricResult!
+}
+
+type BiDashboardData {
+  dashboardId: ID!
+  generatedAt: String!
+  widgets: [BiDashboardMetricData!]!
+}
+
+type Query {
+  biMetric(metricKey: BiMetricKey!, filters: BiMetricFiltersInput): BiMetricResult!
+  biDashboards: [BiDashboard!]!
+  biDashboard(id: ID!): BiDashboard!
+  biDashboardData(id: ID!, filters: BiMetricFiltersInput): BiDashboardData!
+}

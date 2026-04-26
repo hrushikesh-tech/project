@@ -1,8 +1,8 @@
 import { createRequire } from "node:module";
 import { createSupplyChainHarness } from "./supply-chain-test-store.mjs";
+import { Prisma } from "./prisma-client.mjs";
 
 const require = createRequire(import.meta.url);
-const { Prisma } = require("@amdox/db");
 const { InventoryMovementType } = require("@amdox/types");
 
 export function createForecastHarness(options = {}) {

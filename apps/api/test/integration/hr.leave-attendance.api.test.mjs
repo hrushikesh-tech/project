@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { createHrHarness } from '../helpers/hr-test-store.mjs';
+import { configureApiPlatform, unwrapBody } from '../helpers/app-platform.mjs';
 
 const require = createRequire(import.meta.url);
 const request = require('supertest');
@@ -55,7 +56,7 @@ async function createApp(harness) {
       transform: true,
     }),
   );
-  await app.init();
+  await configureApiPlatform(app);
   return app;
 }
 
@@ -89,15 +90,15 @@ test('hr api handles leave workflows, processor auto-cancel, attendance correcti
   const app = await createApp(harness);
   const api = request(app.getHttpServer());
 
-  const approveRequest = (
+  const approveRequest = unwrapBody(
     await api.post('/api/v1/hr/leave-requests').send({
       employeeId: employee.id,
       leaveTypeId: leaveType.id,
       startDate: '2026-08-10T00:00:00.000Z',
       endDate: '2026-08-12T00:00:00.000Z',
       reason: 'Family trip',
-    })
-  ).body;
+    }),
+  );
   await api.post(`/api/v1/hr/leave-requests/${approveRequest.id}/submit`).send({});
   const approved = await api
     .post(`/api/v1/hr/leave-requests/${approveRequest.id}/approve`)
@@ -106,15 +107,15 @@ test('hr api handles leave workflows, processor auto-cancel, attendance correcti
     .send({});
   assert.equal(approved.status, 201);
 
-  const rejectRequest = (
+  const rejectRequest = unwrapBody(
     await api.post('/api/v1/hr/leave-requests').send({
       employeeId: employee.id,
       leaveTypeId: leaveType.id,
       startDate: '2026-09-10T00:00:00.000Z',
       endDate: '2026-09-11T00:00:00.000Z',
       reason: 'Workshop',
-    })
-  ).body;
+    }),
+  );
   await api.post(`/api/v1/hr/leave-requests/${rejectRequest.id}/submit`).send({});
   const rejected = await api
     .post(`/api/v1/hr/leave-requests/${rejectRequest.id}/reject`)
@@ -125,15 +126,15 @@ test('hr api handles leave workflows, processor auto-cancel, attendance correcti
   assert.equal(harness.state.outboxEvents.length, 1);
   assert.equal(harness.state.notifications.length, 1);
 
-  const cancelRequest = (
+  const cancelRequest = unwrapBody(
     await api.post('/api/v1/hr/leave-requests').send({
       employeeId: employee.id,
       leaveTypeId: leaveType.id,
       startDate: '2026-11-10T00:00:00.000Z',
       endDate: '2026-11-12T00:00:00.000Z',
       reason: 'Rescheduled trip',
-    })
-  ).body;
+    }),
+  );
   await api.post(`/api/v1/hr/leave-requests/${cancelRequest.id}/submit`).send({});
   await api
     .post(`/api/v1/hr/leave-requests/${cancelRequest.id}/approve`)
@@ -171,7 +172,7 @@ test('hr api handles leave workflows, processor auto-cancel, attendance correcti
   });
   assert.equal(clockOut.status, 201);
   const corrected = await api
-    .patch(`/api/v1/hr/attendance/${clockOut.body.id}/correct`)
+    .patch(`/api/v1/hr/attendance/${unwrapBody(clockOut).id}/correct`)
     .set('x-user-id', 'manager-user')
     .set('x-roles', 'viewer')
     .send({

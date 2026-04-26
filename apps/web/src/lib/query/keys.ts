@@ -1,0 +1,18 @@
+export const queryKeys = {
+  financeOverview: ["finance", "overview"] as const,
+  journalEntries: ["finance", "journal-entries"] as const,
+  aparOverview: ["ap-ar", "overview"] as const,
+  invoices: ["ap-ar", "invoices"] as const,
+  hrOverview: ["hr", "overview"] as const,
+  employees: ["hr", "employees"] as const,
+  payrollRuns: ["payroll", "runs"] as const,
+  payrollResults: (runId: string) => ["payroll", "runs", runId, "results"] as const,
+  inventoryHeatmap: ["supply-chain", "inventory-heatmap"] as const,
+  notifications: ["notifications", "items"] as const,
+  notificationPreferences: ["notifications", "preferences"] as const,
+  dashboards: ["bi", "dashboards"] as const,
+  dashboard: (dashboardId: string) => ["bi", "dashboards", dashboardId] as const,
+  dashboardMetrics: (dashboardId: string) => ["bi", "dashboards", dashboardId, "metrics"] as const,
+  projects: ["projects", "list"] as const,
+  projectDetail: (projectId: string) => ["projects", projectId] as const,
+};

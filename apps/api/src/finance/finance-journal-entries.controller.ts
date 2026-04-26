@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import {
@@ -8,7 +9,8 @@ import {
 import { JournalEntryQueryDto } from './dto/finance-query.dto';
 import { FinanceService } from './finance.service';
 
-@Controller('api/v1/finance/journal-entries')
+@ApiTags('finance')
+@Controller({ path: 'finance/journal-entries', version: '1' })
 export class FinanceJournalEntriesController {
   constructor(private readonly financeService: FinanceService) {}
 

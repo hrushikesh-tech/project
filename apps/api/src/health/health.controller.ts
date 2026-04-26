@@ -1,7 +1,9 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { Public } from '../common/decorators/roles.decorator';
 
-@Controller('health')
+@ApiTags('health')
+@Controller({ path: 'health', version: '1' })
 export class HealthController {
   @Public()
   @Get()

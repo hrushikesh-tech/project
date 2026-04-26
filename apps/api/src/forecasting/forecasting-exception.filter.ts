@@ -9,6 +9,7 @@ import {
   ForecastPromotionRejected,
   ForecastQualityGateFailed,
 } from "@amdox/types";
+import { writeApiErrorResponse } from "../common/api/request-context";
 
 @Catch(
   ActiveForecastModelNotFound,
@@ -24,12 +25,9 @@ export class ForecastingExceptionFilter implements ExceptionFilter {
         ? HttpStatus.NOT_FOUND
         : HttpStatus.CONFLICT;
 
-    response.status(status).json({
-      statusCode: status,
-      error: exception.name,
+    return writeApiErrorResponse(response, request, status, {
+      code: exception.name,
       message: exception.message,
-      path: request.url,
-      timestamp: new Date().toISOString(),
     });
   }
 }

@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module';
+import { Prisma } from './prisma-client.mjs';
 
 const require = createRequire(import.meta.url);
-const { Prisma } = require('@amdox/db');
 const { JournalEntryStatus } = require('@amdox/types');
 
 export function createFinanceHarness({ tenantId = 'tenant-1' } = {}) {
@@ -589,5 +589,70 @@ export function createFinanceHarness({ tenantId = 'tenant-1' } = {}) {
     insertPeriod,
     insertJournalEntry,
     insertFxRate,
+  };
+}
+
+export function seedFinanceHarness(harness, overrides = {}) {
+  const legalEntity = harness.insertLegalEntity({
+    code: overrides.legalEntityCode ?? 'FIN',
+    name: overrides.legalEntityName ?? 'Finance Test Entity',
+    baseCurrency: overrides.baseCurrency ?? 'INR',
+    ...overrides.legalEntity,
+  });
+  const cash = harness.insertAccount({
+    legalEntityId: legalEntity.id,
+    code: '1000',
+    name: 'Cash',
+    type: 'ASSET',
+    currency: legalEntity.baseCurrency,
+    ...overrides.cashAccount,
+  });
+  const revenue = harness.insertAccount({
+    legalEntityId: legalEntity.id,
+    code: '4000',
+    name: 'Revenue',
+    type: 'REVENUE',
+    currency: legalEntity.baseCurrency,
+    ...overrides.revenueAccount,
+  });
+  const expense = harness.insertAccount({
+    legalEntityId: legalEntity.id,
+    code: '5000',
+    name: 'Expense',
+    type: 'EXPENSE',
+    currency: legalEntity.baseCurrency,
+    ...overrides.expenseAccount,
+  });
+  const period = harness.insertPeriod({
+    legalEntityId: legalEntity.id,
+    name: overrides.periodName ?? 'FY-2026',
+    ...overrides.period,
+  });
+  const capitalEntry = harness.insertJournalEntry({
+    legalEntityId: legalEntity.id,
+    periodId: period.id,
+    description: 'Opening capital',
+    lines: [
+      { accountId: cash.id, debit: 500000n, transactionDebit: 500000n, currency: legalEntity.baseCurrency },
+      { accountId: revenue.id, credit: 500000n, transactionCredit: 500000n, currency: legalEntity.baseCurrency },
+    ],
+    ...overrides.capitalEntry,
+  });
+  const fxRate = harness.insertFxRate({
+    tenantId: overrides.tenantId ?? harness.state.tenants[0]?.id ?? 'tenant-1',
+    targetCurrency: legalEntity.baseCurrency,
+    ...overrides.fxRate,
+  });
+
+  return {
+    legalEntity,
+    accounts: {
+      cash,
+      revenue,
+      expense,
+    },
+    period,
+    capitalEntry,
+    fxRate,
   };
 }

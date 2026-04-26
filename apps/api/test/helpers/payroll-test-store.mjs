@@ -1,9 +1,9 @@
 import { createRequire } from 'node:module';
 import { createHrHarness } from './hr-test-store.mjs';
 import { createFinanceHarness } from './finance-test-store.mjs';
+import { Prisma } from './prisma-client.mjs';
 
 const require = createRequire(import.meta.url);
-const { Prisma } = require('@amdox/db');
 
 const toDecimal = (value, fallback = '0') =>
   value instanceof Prisma.Decimal ? value : new Prisma.Decimal(String(value ?? fallback));

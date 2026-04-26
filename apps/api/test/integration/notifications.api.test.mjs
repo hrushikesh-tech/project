@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { createNotificationsHarness } from "../helpers/notifications-test-store.mjs";
+import { configureApiPlatform, unwrapBody } from "../helpers/app-platform.mjs";
 
 const require = createRequire(import.meta.url);
 const request = require("supertest");
@@ -75,7 +76,7 @@ async function createApp(harness) {
       transform: true,
     }),
   );
-  await app.init();
+  await configureApiPlatform(app);
   return app;
 }
 
@@ -109,7 +110,7 @@ test("notifications api supports inbox, default-on preferences, templates, and w
     .set("x-user-email", viewerUser.email)
     .set("x-roles", "viewer");
   assert.equal(inbox.status, 200);
-  assert.equal(inbox.body.length, 1);
+  assert.equal(unwrapBody(inbox).length, 1);
 
   const marked = await api
     .patch("/api/v1/notifications/notification-1/read")
@@ -117,7 +118,7 @@ test("notifications api supports inbox, default-on preferences, templates, and w
     .set("x-user-email", viewerUser.email)
     .set("x-roles", "viewer");
   assert.equal(marked.status, 200);
-  assert.equal(marked.body.isRead, true);
+  assert.equal(unwrapBody(marked).isRead, true);
 
   const defaultPreferences = await api
     .get("/api/v1/notifications/preferences?eventType=invoice.match_failed")
@@ -125,7 +126,7 @@ test("notifications api supports inbox, default-on preferences, templates, and w
     .set("x-user-email", viewerUser.email)
     .set("x-roles", "viewer");
   assert.equal(defaultPreferences.status, 200);
-  const emailPreference = defaultPreferences.body.find(
+  const emailPreference = unwrapBody(defaultPreferences).find(
     (entry) => entry.channel === "EMAIL",
   );
   assert.equal(emailPreference.enabled, true);
@@ -148,7 +149,7 @@ test("notifications api supports inbox, default-on preferences, templates, and w
     .set("x-user-id", viewerUser.id)
     .set("x-user-email", viewerUser.email)
     .set("x-roles", "viewer");
-  const explicitEmailPreference = explicitPreferences.body.find(
+  const explicitEmailPreference = unwrapBody(explicitPreferences).find(
     (entry) => entry.channel === "EMAIL",
   );
   assert.equal(explicitEmailPreference.enabled, false);
@@ -162,7 +163,7 @@ test("notifications api supports inbox, default-on preferences, templates, and w
     .set("x-user-email", tenantAdmin.email)
     .set("x-roles", "tenant_admin");
   assert.equal(platformTemplate.status, 200);
-  assert.equal(platformTemplate.body[0].source, "PLATFORM_DEFAULT");
+  assert.equal(unwrapBody(platformTemplate)[0].source, "PLATFORM_DEFAULT");
 
   const overriddenTemplate = await api
     .put("/api/v1/notifications/templates")
@@ -184,8 +185,8 @@ test("notifications api supports inbox, default-on preferences, templates, and w
     .set("x-user-id", tenantAdmin.id)
     .set("x-user-email", tenantAdmin.email)
     .set("x-roles", "tenant_admin");
-  assert.equal(effectiveTemplate.body[0].source, "TENANT_OVERRIDE");
-  assert.equal(effectiveTemplate.body[0].subject, "Custom overrun");
+  assert.equal(unwrapBody(effectiveTemplate)[0].source, "TENANT_OVERRIDE");
+  assert.equal(unwrapBody(effectiveTemplate)[0].subject, "Custom overrun");
 
   const createWebhook = await api
     .post("/api/v1/notifications/webhooks")
@@ -206,10 +207,10 @@ test("notifications api supports inbox, default-on preferences, templates, and w
     .set("x-user-email", tenantAdmin.email)
     .set("x-roles", "tenant_admin");
   assert.equal(listWebhooks.status, 200);
-  assert.equal(listWebhooks.body.length, 1);
+  assert.equal(unwrapBody(listWebhooks).length, 1);
 
   const updatedWebhook = await api
-    .patch(`/api/v1/notifications/webhooks/${createWebhook.body.id}`)
+    .patch(`/api/v1/notifications/webhooks/${unwrapBody(createWebhook).id}`)
     .set("x-user-id", tenantAdmin.id)
     .set("x-user-email", tenantAdmin.email)
     .set("x-roles", "tenant_admin")
@@ -220,7 +221,7 @@ test("notifications api supports inbox, default-on preferences, templates, and w
       isActive: false,
     });
   assert.equal(updatedWebhook.status, 200);
-  assert.equal(updatedWebhook.body.isActive, false);
+  assert.equal(unwrapBody(updatedWebhook).isActive, false);
 
   const forbidden = await api
     .post("/api/v1/notifications/webhooks")
@@ -234,6 +235,15 @@ test("notifications api supports inbox, default-on preferences, templates, and w
       isActive: true,
     });
   assert.equal(forbidden.status, 403);
+
+  const crossTenant = await api
+    .get("/api/v1/notifications")
+    .set("x-user-id", viewerUser.id)
+    .set("x-user-email", viewerUser.email)
+    .set("x-roles", "viewer")
+    .set("x-auth-tenant", "tenant-1")
+    .set("x-tenant-id", "tenant-2");
+  assert.equal(crossTenant.status, 403);
 
   await app.close();
 });
