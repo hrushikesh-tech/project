@@ -132,7 +132,7 @@ jobs:
         with:
           command: test
           args: --all-projects --exclude=legacy,apps/ml-service --severity-threshold=high --policy-path=.snyk
-      - uses: aquasecurity/trivy-action@0.31.0
+      - uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .

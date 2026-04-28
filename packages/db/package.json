@@ -12,7 +12,7 @@
     "db:push": "prisma db push",
     "studio": "prisma studio",
     "lint": "eslint . --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "prisma generate && tsc --noEmit"
   },
   "dependencies": {
     "@amdox/types": "workspace:^",
