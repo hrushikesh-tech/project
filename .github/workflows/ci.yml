@@ -115,6 +115,12 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Install TruffleHog
+        run: |
+          curl -sSfL https://github.com/trufflesecurity/trufflehog/releases/download/v3.95.2/trufflehog_3.95.2_linux_amd64.tar.gz \
+            | tar -xz trufflehog
+          sudo install trufflehog /usr/local/bin/trufflehog
+          trufflehog --version
       - name: Secrets gate
         shell: pwsh
         run: ./scripts/security/run-trufflehog.ps1

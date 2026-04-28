@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",
+    "build:test-deps": "pnpm --filter @amdox/types build && pnpm --filter @amdox/db build",
     "start": "node dist/src/main.js",
     "start:prod": "node dist/src/main.js",
     "worker": "node dist/src/worker.js",
@@ -12,11 +13,11 @@
     "test:unit:raw": "node --test test/unit/*.test.mjs",
     "test:unit:coverage:raw": "node --experimental-test-coverage --test-coverage-lines=80 --test --test-coverage-include=dist/src/ap-ar/ap-ar.service.js --test-coverage-include=dist/src/ap-ar/matching/three-way-match.service.js --test-coverage-include=dist/src/ap-ar/reports/aging-report.service.js --test-coverage-include=dist/src/finance/finance.service.js --test-coverage-include=dist/src/finance/fx-rates.service.js --test-coverage-include=dist/src/hr/hr.service.js --test-coverage-include=dist/src/forecasting/forecasting.service.js --test-coverage-include=dist/src/payroll/engine/india-tax.service.js --test-coverage-include=dist/src/payroll/engine/payroll-engine.service.js --test-coverage-include=dist/src/payroll/payroll.service.js --test-coverage-include=dist/src/supply-chain/supply-chain.service.js --test-coverage-include=dist/src/supply-chain/inventory/fifo-inventory.service.js --test-coverage-include=dist/src/supply-chain/receiving/goods-receipt.service.js --test-coverage-include=dist/src/supply-chain/reorder/reorder-automation.service.js --test-coverage-include=dist/src/project-management/project-management.service.js --test-coverage-include=dist/src/project-management/project-dependency.service.js --test-coverage-include=dist/src/project-management/project-budget-alert.service.js --test-coverage-include=dist/src/bi/metrics/bi-metrics.service.js --test-coverage-include=dist/src/bi/bi-refresh.service.js --test-coverage-include=dist/src/notifications/notification-delivery.service.js --test-coverage-include=dist/src/notifications/notifications.service.js --test-coverage-include=dist/src/notifications/outbox-poller.service.js test/unit/*.test.mjs test/integration/*.test.mjs",
     "test:integration:raw": "node --test test/integration/*.test.mjs",
-    "test:unit": "pnpm run build && pnpm run test:unit:raw",
+    "test:unit": "pnpm run build:test-deps && pnpm run build && pnpm run test:unit:raw",
     "test:unit:coverage": "pnpm run build && pnpm run test:unit:coverage:raw",
-    "test:integration": "pnpm run build && pnpm run test:integration:raw",
-    "test:smoke": "pnpm run build && node test/smoke/auth-runtime.smoke.mjs",
-    "test:finance": "pnpm run build && pnpm run test:unit:raw && pnpm run test:integration:raw",
+    "test:integration": "pnpm run build:test-deps && pnpm run build && pnpm run test:integration:raw",
+    "test:smoke": "pnpm run build:test-deps && pnpm run build && node test/smoke/auth-runtime.smoke.mjs",
+    "test:finance": "pnpm run build:test-deps && pnpm run build && pnpm run test:unit:raw && pnpm run test:integration:raw",
     "test:payroll:perf": "node test/perf/payroll.batch.perf.mjs"
   },
   "dependencies": {
