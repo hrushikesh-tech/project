@@ -1,7 +1,13 @@
 import { expect, type Page } from "@playwright/test";
 
-const username = process.env.PHASE12_AUTH_USERNAME;
-const password = process.env.PHASE12_AUTH_PASSWORD;
+const username =
+  process.env.PHASE17_AUTH_USERNAME ??
+  process.env.PHASE15_AUTH_USERNAME ??
+  process.env.PHASE12_AUTH_USERNAME;
+const password =
+  process.env.PHASE17_AUTH_PASSWORD ??
+  process.env.PHASE15_AUTH_PASSWORD ??
+  process.env.PHASE12_AUTH_PASSWORD;
 
 export const phase15JourneyNames = [
   "auth shell redirect",

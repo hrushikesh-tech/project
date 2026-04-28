@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/with-auth-secret.mjs build",
     "start": "next start --hostname 0.0.0.0",
     "lint": "eslint . --ignore-pattern next-env.d.ts",
     "typecheck": "tsc --noEmit",

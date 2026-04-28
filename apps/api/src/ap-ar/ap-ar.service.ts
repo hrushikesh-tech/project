@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from "node:crypto";
 import {
   Injectable,
   BadRequestException,
@@ -6,33 +6,32 @@ import {
   PayloadTooLargeException,
   ServiceUnavailableException,
   Optional,
-} from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
-import { fileTypeFromBuffer } from 'file-type';
-import { ClsService } from 'nestjs-cls';
+} from "@nestjs/common";
+import { InjectQueue } from "@nestjs/bullmq";
+import { Queue } from "bullmq";
+import { fileTypeFromBuffer } from "file-type";
+import { ClsService } from "nestjs-cls";
 import {
   InvoiceMatchFailedException,
   InvoicePostingConfigurationException,
   UnsupportedInvoiceFileException,
-} from '@amdox/types';
-import { Prisma } from '@amdox/db';
-import { PrismaService } from '../prisma/prisma.service';
-import { UploadInvoiceDto } from './dto/upload-invoice.dto';
-import { AgingReportQueryDto } from './dto/aging-report-query.dto';
-import { ReviewInvoiceDto } from './dto/review-invoice.dto';
-import { ThreeWayMatchService } from './matching/three-way-match.service';
-import { OcrMapperService } from './ocr/ocr-mapper.service';
-import { OcrExtractionResult } from './ocr/ocr.provider';
-import { InvoiceLedgerPostingService } from './posting/invoice-ledger-posting.service';
-import { AgingReportService } from './reports/aging-report.service';
-import { InvoiceStorageService } from './storage/invoice-storage.service';
+} from "@amdox/types";
+import { Prisma } from "@amdox/db";
+import { PrismaService } from "../prisma/prisma.service";
+import { UploadInvoiceDto } from "./dto/upload-invoice.dto";
+import { AgingReportQueryDto } from "./dto/aging-report-query.dto";
+import { ReviewInvoiceDto } from "./dto/review-invoice.dto";
+import { ThreeWayMatchService } from "./matching/three-way-match.service";
+import { OcrMapperService } from "./ocr/ocr-mapper.service";
+import { OcrExtractionResult } from "./ocr/ocr.provider";
+import { InvoiceLedgerPostingService } from "./posting/invoice-ledger-posting.service";
+import { AgingReportService } from "./reports/aging-report.service";
+import { InvoiceStorageService } from "./storage/invoice-storage.service";
 import {
   INVOICE_OCR_JOB,
   INVOICE_OCR_QUEUE,
   InvoiceOcrJobPayload,
-} from './queue/invoice-ocr.queue';
-import { areBackgroundQueuesEnabled } from '../common/queue/queue-runtime';
+} from "./queue/invoice-ocr.queue";
 
 export interface UploadedInvoiceFile {
   buffer: Buffer;
@@ -42,12 +41,20 @@ export interface UploadedInvoiceFile {
 }
 
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
-const ALLOWED_MIME_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg']);
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+]);
 const EXTENSION_BY_MIME_TYPE: Record<string, string> = {
-  'application/pdf': 'pdf',
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
+  "application/pdf": "pdf",
+  "image/png": "png",
+  "image/jpeg": "jpg",
 };
+
+type InvoiceMatchResult = Awaited<
+  ReturnType<ThreeWayMatchService["matchInvoice"]>
+>;
 
 @Injectable()
 export class ApArService {
@@ -71,8 +78,15 @@ export class ApArService {
     const detectedMimeType = await this.detectMimeType(file);
     const extension = EXTENSION_BY_MIME_TYPE[detectedMimeType];
     const invoiceId = randomUUID();
-    const legalEntity = await this.ensureLegalEntity(tenantId, dto.legalEntityId);
-    const counterparty = await this.resolveCounterparty(tenantId, dto, legalEntity.id);
+    const legalEntity = await this.ensureLegalEntity(
+      tenantId,
+      dto.legalEntityId,
+    );
+    const counterparty = await this.resolveCounterparty(
+      tenantId,
+      dto,
+      legalEntity.id,
+    );
     const issueDate = new Date();
     const dueDate = this.deriveDueDate(issueDate, counterparty.paymentTerms);
 
@@ -89,11 +103,11 @@ export class ApArService {
         id: invoiceId,
         tenantId,
         legalEntityId: legalEntity.id,
-        vendorId: dto.type === 'PAYABLE' ? dto.vendorId ?? null : null,
-        customerId: dto.type === 'RECEIVABLE' ? dto.customerId ?? null : null,
+        vendorId: dto.type === "PAYABLE" ? (dto.vendorId ?? null) : null,
+        customerId: dto.type === "RECEIVABLE" ? (dto.customerId ?? null) : null,
         purchaseOrderId: dto.purchaseOrderId ?? null,
         type: dto.type,
-        status: 'OCR_PENDING',
+        status: "OCR_PENDING",
         invoiceNumber: `OCR-${invoiceId.slice(0, 8).toUpperCase()}`,
         issueDate,
         totalAmount: 0n,
@@ -103,7 +117,7 @@ export class ApArService {
         poNumber: dto.poNumber ?? null,
         sourceDocumentKey: storage.key,
         sourceDocumentMimeType: detectedMimeType,
-        ocrStatus: 'QUEUED',
+        ocrStatus: "QUEUED",
         counterpartyName: counterparty.name,
       },
     });
@@ -122,7 +136,7 @@ export class ApArService {
         jobId: invoice.id,
         attempts: 3,
         backoff: {
-          type: 'exponential',
+          type: "exponential",
           delay: 1000,
         },
         removeOnComplete: 50,
@@ -152,7 +166,7 @@ export class ApArService {
     });
 
     if (!invoice) {
-      throw new NotFoundException('Invoice not found.');
+      throw new NotFoundException("Invoice not found.");
     }
 
     return invoice;
@@ -171,10 +185,10 @@ export class ApArService {
     });
 
     if (!invoice) {
-      throw new NotFoundException('Invoice not found.');
+      throw new NotFoundException("Invoice not found.");
     }
 
-    if (invoice.ocrStatus === 'COMPLETED' || invoice.status === 'POSTED') {
+    if (invoice.ocrStatus === "COMPLETED" || invoice.status === "POSTED") {
       return {
         skipped: true,
         invoiceId: invoice.id,
@@ -216,13 +230,13 @@ export class ApArService {
         purchaseOrderId: linkedPurchaseOrderId,
         totalAmount: mapped.totalAmount || invoice.totalAmount,
         taxAmount: mapped.taxAmount || invoice.taxAmount,
-        status: 'PENDING_REVIEW',
-        ocrStatus: 'COMPLETED',
+        status: "PENDING_REVIEW",
+        ocrStatus: "COMPLETED",
         ocrProvider: params.providerName,
         reviewReason:
           mapped.invoiceNumber && mapped.totalAmount > 0n
             ? null
-            : 'OCR completed with partial extraction. Finance review is required.',
+            : "OCR completed with partial extraction. Finance review is required.",
         counterpartyName: mapped.counterpartyName ?? invoice.counterpartyName,
         ocrData: mapped.ocrData as Prisma.InputJsonValue,
       },
@@ -245,14 +259,14 @@ export class ApArService {
     });
 
     if (!invoice) {
-      throw new NotFoundException('Invoice not found.');
+      throw new NotFoundException("Invoice not found.");
     }
 
     return db.invoice.update({
       where: { id: invoice.id },
       data: {
-        status: 'PENDING_REVIEW',
-        ocrStatus: 'FAILED',
+        status: "PENDING_REVIEW",
+        ocrStatus: "FAILED",
         ocrProvider: params.providerName ?? invoice.ocrProvider,
         reviewReason: params.reason,
       },
@@ -266,18 +280,21 @@ export class ApArService {
     });
 
     if (!invoice) {
-      throw new NotFoundException('Invoice not found.');
+      throw new NotFoundException("Invoice not found.");
     }
 
-    if (invoice.type === 'RECEIVABLE') {
+    if (invoice.type === "RECEIVABLE") {
       try {
-        await this.invoiceLedgerPostingService.validateReceivablePostingConfiguration(tenantId, invoiceId);
+        await this.invoiceLedgerPostingService.validateReceivablePostingConfiguration(
+          tenantId,
+          invoiceId,
+        );
       } catch (error) {
         if (error instanceof InvoicePostingConfigurationException) {
           await this.prisma.forTenant(tenantId).invoice.update({
             where: { id: invoiceId },
             data: {
-              status: 'PENDING_REVIEW',
+              status: "PENDING_REVIEW",
               reviewReason: error.message,
             },
           });
@@ -300,18 +317,18 @@ export class ApArService {
     });
 
     if (!invoice) {
-      throw new NotFoundException('Invoice not found.');
+      throw new NotFoundException("Invoice not found.");
     }
 
-    if (invoice.ocrStatus === 'COMPLETED' || invoice.status === 'POSTED') {
+    if (invoice.ocrStatus === "COMPLETED" || invoice.status === "POSTED") {
       return invoice;
     }
 
     return db.invoice.update({
       where: { id: invoice.id },
       data: {
-        status: 'OCR_PROCESSING',
-        ocrStatus: 'PROCESSING',
+        status: "OCR_PROCESSING",
+        ocrStatus: "PROCESSING",
       },
     });
   }
@@ -322,13 +339,17 @@ export class ApArService {
   }
 
   async matchInvoiceForTenant(tenantId: string, invoiceId: string) {
-    const result = await this.threeWayMatchService.matchInvoice(tenantId, invoiceId);
+    const result = await this.threeWayMatchService.matchInvoice(
+      tenantId,
+      invoiceId,
+    );
 
-    if (result.matchStatus === 'MATCHED') {
-      const posted = await this.invoiceLedgerPostingService.postMatchedPayableInvoice(
-        tenantId,
-        invoiceId,
-      );
+    if (result.matchStatus === "MATCHED") {
+      const posted =
+        await this.invoiceLedgerPostingService.postMatchedPayableInvoice(
+          tenantId,
+          invoiceId,
+        );
       return {
         ...result,
         invoice: posted,
@@ -336,7 +357,7 @@ export class ApArService {
     }
 
     await this.persistMismatchArtifacts(tenantId, invoiceId, result);
-    throw new InvoiceMatchFailedException(result.mismatchReasons.join(' '));
+    throw new InvoiceMatchFailedException(result.mismatchReasons.join(" "));
   }
 
   async reviewInvoice(invoiceId: string, dto: ReviewInvoiceDto) {
@@ -348,31 +369,34 @@ export class ApArService {
     });
 
     if (!invoice) {
-      throw new NotFoundException('Invoice not found.');
+      throw new NotFoundException("Invoice not found.");
     }
 
-    if (dto.action === 'RETRY_MATCH') {
+    if (dto.action === "RETRY_MATCH") {
       return this.matchInvoiceForTenant(tenantId, invoiceId);
     }
 
-    if (dto.action === 'REJECT') {
+    if (dto.action === "REJECT") {
       return db.invoice.update({
         where: { id: invoiceId },
         data: {
-          status: 'VOID',
-          reviewReason: dto.reason ?? 'Invoice rejected during manual review.',
+          status: "VOID",
+          reviewReason: dto.reason ?? "Invoice rejected during manual review.",
         },
       });
     }
 
-    if (invoice.type === 'PAYABLE') {
-      return this.invoiceLedgerPostingService.postMatchedPayableInvoice(tenantId, invoiceId);
+    if (invoice.type === "PAYABLE") {
+      return this.invoiceLedgerPostingService.postMatchedPayableInvoice(
+        tenantId,
+        invoiceId,
+      );
     }
 
     return db.invoice.update({
       where: { id: invoiceId },
       data: {
-        status: 'APPROVED',
+        status: "APPROVED",
         reviewReason: dto.reason ?? null,
       },
     });
@@ -383,28 +407,32 @@ export class ApArService {
   }
 
   private requireTenantId() {
-    const tenantId = this.cls.get('tenantId');
-    if (!tenantId || tenantId === '*') {
-      throw new BadRequestException('AP/AR endpoints require a tenant-scoped request context.');
+    const tenantId = this.cls.get("tenantId");
+    if (!tenantId || tenantId === "*") {
+      throw new BadRequestException(
+        "AP/AR endpoints require a tenant-scoped request context.",
+      );
     }
     return tenantId;
   }
 
   private assertInvoiceOcrQueueAvailable() {
-    if (!areBackgroundQueuesEnabled() || !this.invoiceOcrQueue) {
+    if (!this.invoiceOcrQueue) {
       throw new ServiceUnavailableException(
-        'Invoice OCR processing is unavailable because Redis-backed background queues are disabled.',
+        "Invoice OCR processing is unavailable because Redis-backed background queues are disabled.",
       );
     }
   }
 
-  private assertUploadPresent(file?: UploadedInvoiceFile | null): asserts file is UploadedInvoiceFile {
+  private assertUploadPresent(
+    file?: UploadedInvoiceFile | null,
+  ): asserts file is UploadedInvoiceFile {
     if (!file?.buffer?.length) {
-      throw new BadRequestException('Invoice source file is required.');
+      throw new BadRequestException("Invoice source file is required.");
     }
 
     if (file.size > MAX_UPLOAD_SIZE_BYTES) {
-      throw new PayloadTooLargeException('Invoice upload cannot exceed 10MB.');
+      throw new PayloadTooLargeException("Invoice upload cannot exceed 10MB.");
     }
   }
 
@@ -425,16 +453,20 @@ export class ApArService {
     });
 
     if (!legalEntity) {
-      throw new NotFoundException('Legal entity not found.');
+      throw new NotFoundException("Legal entity not found.");
     }
 
     return legalEntity;
   }
 
-  private async resolveCounterparty(tenantId: string, dto: UploadInvoiceDto, legalEntityId: string) {
-    if (dto.type === 'PAYABLE') {
+  private async resolveCounterparty(
+    tenantId: string,
+    dto: UploadInvoiceDto,
+    legalEntityId: string,
+  ) {
+    if (dto.type === "PAYABLE") {
       if (!dto.vendorId) {
-        return { name: 'Unassigned Vendor', paymentTerms: 30 };
+        return { name: "Unassigned Vendor", paymentTerms: 30 };
       }
 
       const vendor = await this.prisma.tenant.vendor.findFirst({
@@ -446,13 +478,13 @@ export class ApArService {
         },
       });
       if (!vendor) {
-        throw new NotFoundException('Vendor not found.');
+        throw new NotFoundException("Vendor not found.");
       }
       return { name: vendor.name, paymentTerms: vendor.paymentTerms };
     }
 
     if (!dto.customerId) {
-      return { name: 'Unassigned Customer', paymentTerms: 30 };
+      return { name: "Unassigned Customer", paymentTerms: 30 };
     }
 
     const customer = await this.prisma.tenant.customer.findFirst({
@@ -464,7 +496,7 @@ export class ApArService {
       },
     });
     if (!customer) {
-      throw new NotFoundException('Customer not found.');
+      throw new NotFoundException("Customer not found.");
     }
     return { name: customer.name, paymentTerms: customer.paymentTerms };
   }
@@ -476,7 +508,7 @@ export class ApArService {
   }
 
   private async resolvePurchaseOrderId(
-    db: ReturnType<PrismaService['forTenant']>,
+    db: ReturnType<PrismaService["forTenant"]>,
     poNumber: string | null,
     purchaseOrderId: string | null,
   ) {
@@ -494,15 +526,19 @@ export class ApArService {
     return purchaseOrder?.id ?? null;
   }
 
-  private async persistMismatchArtifacts(tenantId: string, invoiceId: string, result: any) {
+  private async persistMismatchArtifacts(
+    tenantId: string,
+    invoiceId: string,
+    result: InvoiceMatchResult,
+  ) {
     const db = this.prisma.forTenant(tenantId);
-    const reviewReason = result.mismatchReasons.join(' ');
-    const goodsReceiptIds = result.goodsReceipts.map((receipt: any) => receipt.id);
+    const reviewReason = result.mismatchReasons.join(" ");
+    const goodsReceiptIds = result.goodsReceipts.map((receipt) => receipt.id);
 
     await db.invoice.update({
       where: { id: invoiceId },
       data: {
-        status: 'PENDING_REVIEW',
+        status: "PENDING_REVIEW",
         reviewReason,
       },
     });
@@ -510,7 +546,7 @@ export class ApArService {
     await db.outboxEvent.create({
       data: {
         tenantId,
-        eventType: 'invoice.match_failed',
+        eventType: "invoice.match_failed",
         payload: {
           tenantId,
           invoiceId,
@@ -518,13 +554,13 @@ export class ApArService {
           goodsReceiptIds,
           mismatchReasons: result.mismatchReasons,
         },
-        status: 'PENDING',
+        status: "PENDING",
       },
     });
 
     const financeUsers = await db.user.findMany({
       where: {
-        role: 'finance_manager',
+        role: "finance_manager",
         isActive: true,
         deletedAt: null,
       },
@@ -535,9 +571,9 @@ export class ApArService {
         data: financeUsers.map((user) => ({
           tenantId,
           userId: user.id,
-          type: 'invoice.match_failed',
-          channel: 'IN_APP',
-          title: 'Invoice review required',
+          type: "invoice.match_failed",
+          channel: "IN_APP",
+          title: "Invoice review required",
           body: reviewReason,
           metadata: {
             invoiceId,

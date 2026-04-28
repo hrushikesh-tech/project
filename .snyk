@@ -1,0 +1,5 @@
+# Phase 17 policy file.
+# Keep every ignore entry reviewed, time-bounded, and attributed in git history.
+version: v1.25.0
+ignore: {}
+patch: {}

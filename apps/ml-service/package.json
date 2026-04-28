@@ -6,7 +6,7 @@
     "dev": "uvicorn main:app --reload",
     "build": "echo \"No build step required\"",
     "start": "python -m uvicorn main:app --host 0.0.0.0 --port 8000",
-    "lint": "ruff check .",
+    "lint": "node scripts/run-python.mjs -m ruff check .",
     "test": "node scripts/run-python.mjs -m pytest tests -q"
   }
 }

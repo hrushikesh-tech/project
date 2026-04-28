@@ -1,12 +1,20 @@
-import { AccountType } from '@amdox/db';
+import type { LedgerAccountType } from "@amdox/types";
 import {
   IsBoolean,
-  IsEnum,
+  IsIn,
   IsOptional,
   IsString,
   Length,
   Matches,
-} from 'class-validator';
+} from "class-validator";
+
+const ledgerAccountTypes = [
+  "ASSET",
+  "LIABILITY",
+  "EQUITY",
+  "REVENUE",
+  "EXPENSE",
+] as const;
 
 export class CreateAccountDto {
   @IsString()
@@ -20,8 +28,8 @@ export class CreateAccountDto {
   @Length(2, 150)
   name!: string;
 
-  @IsEnum(AccountType)
-  type!: AccountType;
+  @IsIn(ledgerAccountTypes)
+  type!: LedgerAccountType;
 
   @IsOptional()
   @IsString()

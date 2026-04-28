@@ -1,11 +1,24 @@
-import { Readable } from 'node:stream';
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Readable } from "node:stream";
+import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import {
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
-} from '@aws-sdk/client-s3';
+} from "@aws-sdk/client-s3";
+
+type WebStreamBody = {
+  transformToWebStream: () => ReadableStream;
+};
+
+function hasWebStreamTransform(value: unknown): value is WebStreamBody {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "transformToWebStream" in value &&
+    typeof value.transformToWebStream === "function"
+  );
+}
 
 @Injectable()
 export class InvoiceStorageService {
@@ -13,12 +26,15 @@ export class InvoiceStorageService {
   private readonly client: S3Client;
 
   constructor(private readonly configService: ConfigService) {
-    this.bucket = this.configService.get<string>('AWS_S3_BUCKET', '');
+    this.bucket = this.configService.get<string>("AWS_S3_BUCKET", "");
     this.client = new S3Client({
-      region: this.configService.get<string>('AWS_REGION'),
+      region: this.configService.get<string>("AWS_REGION"),
       credentials: {
-        accessKeyId: this.configService.get<string>('AWS_ACCESS_KEY_ID', ''),
-        secretAccessKey: this.configService.get<string>('AWS_SECRET_ACCESS_KEY', ''),
+        accessKeyId: this.configService.get<string>("AWS_ACCESS_KEY_ID", ""),
+        secretAccessKey: this.configService.get<string>(
+          "AWS_SECRET_ACCESS_KEY",
+          "",
+        ),
       },
     });
   }
@@ -60,11 +76,13 @@ export class InvoiceStorageService {
       return body;
     }
 
-    if (body && typeof (body as any).transformToWebStream === 'function') {
-      return Readable.fromWeb((body as any).transformToWebStream());
+    if (hasWebStreamTransform(body)) {
+      return Readable.fromWeb(body.transformToWebStream());
     }
 
-    throw new Error(`Unable to read invoice source stream for ${sourceDocumentKey}.`);
+    throw new Error(
+      `Unable to read invoice source stream for ${sourceDocumentKey}.`,
+    );
   }
 
   async getInvoiceSourceBuffer(sourceDocumentKey: string) {

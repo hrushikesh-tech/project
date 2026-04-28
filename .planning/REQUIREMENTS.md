@@ -168,10 +168,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### CI/CD (CICD)
 
-- [ ] **CICD-01**: GitHub Actions pipeline: lint → typecheck → unit tests → integration tests → security scan → E2E → build → deploy staging → deploy production
-- [ ] **CICD-02**: trufflehog secrets scan fails build on any committed secret
-- [ ] **CICD-03**: snyk + trivy scan fails build on HIGH/CRITICAL vulnerabilities
-- [ ] **CICD-04**: Production deployment requires manual approval in GitHub
+- [x] **CICD-01**: GitHub Actions pipeline: lint → typecheck → unit tests → integration tests → security scan → E2E → build → deploy staging → deploy production
+- [x] **CICD-02**: trufflehog secrets scan fails build on any committed secret
+- [x] **CICD-03**: snyk + trivy scan fails build on HIGH/CRITICAL vulnerabilities
+- [x] **CICD-04**: Production deployment requires manual approval in GitHub
 
 ### Observability (OBS)
 
@@ -204,16 +204,19 @@ Requirements for initial release. Each maps to roadmap phases.
 Deferred to future release. Tracked but not in current roadmap.
 
 ### Platform
+
 - **PLAT-01**: Multi-region deployment for data residency compliance
 - **PLAT-02**: Custom workflow builder (low-code approval chains)
 - **PLAT-03**: Mobile native apps (iOS/Android)
 
 ### Integration
+
 - **INT-01**: CRM integration (Salesforce, HubSpot)
 - **INT-02**: Banking integration (direct bank feeds)
 - **INT-03**: E-commerce connector (Shopify, WooCommerce)
 
 ### Advanced AI
+
 - **AI-01**: Natural language query interface for reports
 - **AI-02**: Anomaly detection in financial transactions
 - **AI-03**: Automated expense categorization
@@ -222,50 +225,52 @@ Deferred to future release. Tracked but not in current roadmap.
 
 Explicitly excluded. Documented to prevent scope creep.
 
-| Feature | Reason |
-|---------|--------|
-| Custom SQL report builder | Security risk — SQL injection vector; pre-built dashboards sufficient |
-| Real-time collaborative editing | CRDT/OT complexity; not core ERP value |
-| Built-in CRM | Scope creep; integrate via API |
-| Native mobile apps | PWA covers mobile for v1 |
-| AI chatbot | Quality not production-ready for financial data |
-| Blockchain audit trail | Unnecessary complexity; TimescaleDB sufficient |
-| Multi-region deployment | Single-region sufficient for v1 |
+| Feature                         | Reason                                                                |
+| ------------------------------- | --------------------------------------------------------------------- |
+| Custom SQL report builder       | Security risk — SQL injection vector; pre-built dashboards sufficient |
+| Real-time collaborative editing | CRDT/OT complexity; not core ERP value                                |
+| Built-in CRM                    | Scope creep; integrate via API                                        |
+| Native mobile apps              | PWA covers mobile for v1                                              |
+| AI chatbot                      | Quality not production-ready for financial data                       |
+| Blockchain audit trail          | Unnecessary complexity; TimescaleDB sufficient                        |
+| Multi-region deployment         | Single-region sufficient for v1                                       |
 
 ## Traceability
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| ENV-01..04 | Phase 1 | Pending |
-| DB-01..05 | Phase 2 | Pending |
-| AUTH-01..10 | Phase 2 | Pending |
-| FIN-01..08 | Phase 3 | Pending |
-| APAR-01..06 | Phase 4 | Pending |
-| HR-01..07 | Phase 5 | Pending |
-| PAY-01..06 | Phase 6 | Pending |
-| SC-01..06 | Phase 7 | Pending |
-| ML-01..05 | Phase 8 | Pending |
-| BI-01..05 | Phase 9 | Pending |
-| PM-01..05 | Phase 10 | Pending |
-| NOTIF-01..06 | Phase 11 | Pending |
-| UI-01..12 | Phase 12 | Pending |
-| API-01..05 | Phase 13 | Pending |
-| SEC-01..09 | Phase 14 | Pending |
-| TEST-01..05 | Phase 15 | Pending |
-| K8S-01..04 | Phase 16 | Completed |
-| CICD-01..04 | Phase 17 | Pending |
-| OBS-01..04 | Phase 18 | Pending |
-| CLOUD-01..03 | Phase 18 | Pending |
-| GDPR-01..04 | Phase 18 | Pending |
-| DOCS-01..03 | Phase 18 | Pending |
+| Requirement  | Phase    | Status    |
+| ------------ | -------- | --------- |
+| ENV-01..04   | Phase 1  | Pending   |
+| DB-01..05    | Phase 2  | Pending   |
+| AUTH-01..10  | Phase 2  | Pending   |
+| FIN-01..08   | Phase 3  | Pending   |
+| APAR-01..06  | Phase 4  | Pending   |
+| HR-01..07    | Phase 5  | Pending   |
+| PAY-01..06   | Phase 6  | Pending   |
+| SC-01..06    | Phase 7  | Pending   |
+| ML-01..05    | Phase 8  | Pending   |
+| BI-01..05    | Phase 9  | Pending   |
+| PM-01..05    | Phase 10 | Pending   |
+| NOTIF-01..06 | Phase 11 | Pending   |
+| UI-01..12    | Phase 12 | Pending   |
+| API-01..05   | Phase 13 | Pending   |
+| SEC-01..09   | Phase 14 | Pending   |
+| TEST-01..05  | Phase 15 | Pending   |
+| K8S-01..04   | Phase 16 | Completed |
+| CICD-01..04  | Phase 17 | Completed |
+| OBS-01..04   | Phase 18 | Pending   |
+| CLOUD-01..03 | Phase 18 | Pending   |
+| GDPR-01..04  | Phase 18 | Pending   |
+| DOCS-01..03  | Phase 18 | Pending   |
 
 **Coverage:**
+
 - v1 requirements: 122 total
 - Mapped to phases: 122
 - Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-04-09*
-*Last updated: 2026-04-09 after initial definition*
+
+_Requirements defined: 2026-04-09_
+_Last updated: 2026-04-09 after initial definition_

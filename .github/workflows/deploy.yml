@@ -1,0 +1,174 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: deploy-${{ github.event.workflow_run.head_branch || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "20"
+  STAGING_API_BASE_URL: https://api.staging.amdox.example
+  STAGING_WEB_BASE_URL: https://web.staging.amdox.example
+
+jobs:
+  publish_artifacts:
+    if: >-
+      ${{
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        !contains(github.event.workflow_run.head_commit.message, '[skip ci]')
+      }}
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.release_meta.outputs.image_tag }}
+      web_image: ${{ steps.release_meta.outputs.web_image }}
+      api_image: ${{ steps.release_meta.outputs.api_image }}
+      api_worker_image: ${{ steps.release_meta.outputs.api_worker_image }}
+      ml_service_image: ${{ steps.release_meta.outputs.ml_service_image }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: release_meta
+        env:
+          TRUSTED_SHA: ${{ github.event.workflow_run.head_sha }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          IMAGE_TAG="${TRUSTED_SHA::12}"
+          echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+          echo "web_image=ghcr.io/$OWNER/amdox-web:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+          echo "api_image=ghcr.io/$OWNER/amdox-api:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+          echo "api_worker_image=ghcr.io/$OWNER/amdox-api:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+          echo "ml_service_image=ghcr.io/$OWNER/amdox-ml-service:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.release_meta.outputs.web_image }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: ${{ steps.release_meta.outputs.api_image }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/ml-service/Dockerfile
+          push: true
+          tags: ${{ steps.release_meta.outputs.ml_service_image }}
+
+  promote_staging:
+    needs: publish_artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Dry-run staging values update
+        run: node scripts/release/update-image-tags.mjs --file infra/helm/amdox/values-staging.yaml --set-tag ${{ needs.publish_artifacts.outputs.image_tag }} --dry-run
+      - name: Update staging tags
+        run: node scripts/release/update-image-tags.mjs --file infra/helm/amdox/values-staging.yaml --set-tag ${{ needs.publish_artifacts.outputs.image_tag }}
+      - name: Commit staging promotion
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- infra/helm/amdox/values-staging.yaml; then
+            echo "No staging changes to commit."
+            exit 0
+          fi
+          git add infra/helm/amdox/values-staging.yaml
+          git commit -m "chore(release): promote staging to ${{ needs.publish_artifacts.outputs.image_tag }} [skip ci]"
+          git push origin HEAD:main
+      - name: Wait for staging API and web readiness
+        env:
+          STAGING_API_BASE_URL: ${{ env.STAGING_API_BASE_URL }}
+          STAGING_WEB_BASE_URL: ${{ env.STAGING_WEB_BASE_URL }}
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent "$STAGING_API_BASE_URL/api/v1/health" >/dev/null && curl --fail --silent "$STAGING_WEB_BASE_URL" >/dev/null; then
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "Staging endpoints did not become ready in time."
+          exit 1
+
+  staging_smoke:
+    needs:
+      - publish_artifacts
+      - promote_staging
+    runs-on: ubuntu-latest
+    env:
+      PHASE15_SMOKE_BASE_URL: ${{ env.STAGING_API_BASE_URL }}
+      PLAYWRIGHT_EXTERNAL_SERVER: "1"
+      PLAYWRIGHT_BASE_URL: ${{ env.STAGING_WEB_BASE_URL }}
+      PHASE17_AUTH_USERNAME: ${{ secrets.PHASE17_AUTH_USERNAME }}
+      PHASE17_AUTH_PASSWORD: ${{ secrets.PHASE17_AUTH_PASSWORD }}
+      PHASE15_TENANT_ID: ${{ secrets.PHASE15_TENANT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @amdox/web exec playwright install --with-deps chromium
+      - run: pnpm verify:phase17:smoke:api
+      - run: pnpm verify:phase17:smoke:web
+
+  promote_production:
+    needs:
+      - publish_artifacts
+      - staging_smoke
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Dry-run production values update
+        run: node scripts/release/update-image-tags.mjs --file infra/helm/amdox/values-prod.yaml --set-tag ${{ needs.publish_artifacts.outputs.image_tag }} --dry-run
+      - name: Update production tags
+        run: node scripts/release/update-image-tags.mjs --file infra/helm/amdox/values-prod.yaml --set-tag ${{ needs.publish_artifacts.outputs.image_tag }}
+      - name: Commit production promotion
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- infra/helm/amdox/values-prod.yaml; then
+            echo "No production changes to commit."
+            exit 0
+          fi
+          git add infra/helm/amdox/values-prod.yaml
+          git commit -m "chore(release): promote production to ${{ needs.publish_artifacts.outputs.image_tag }} [skip ci]"
+          git push origin HEAD:main

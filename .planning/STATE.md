@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-04-26T22:23:20.311Z"
+last_updated: "2026-04-28T00:37:24.028Z"
 progress:
   total_phases: 18
-  completed_phases: 5
-  total_plans: 61
-  completed_plans: 25
-  percent: 41
+  completed_phases: 6
+  total_plans: 66
+  completed_plans: 29
+  percent: 44
 ---
 
 # State: Amdox AI-Powered Cloud ERP Suite
@@ -19,14 +19,14 @@ progress:
 See: `.planning/PROJECT.md`
 
 **Core value:** Every financial transaction is accurately recorded, balanced, and auditable
-**Current focus:** Phase 17 - CI/CD Pipeline
+**Current focus:** Phase 18 - Observability, Cloud, GDPR & Documentation
 
 ## Current Phase
 
-**Phase:** 17
-**Name:** CI/CD Pipeline
+**Phase:** 18
+**Name:** Observability, Cloud, GDPR & Documentation
 **Status:** Ready to execute
-**Requirements:** CICD-01, CICD-02, CICD-03, CICD-04
+**Requirements:** OBS-01, OBS-02, OBS-03, OBS-04, CLOUD-01, CLOUD-02, CLOUD-03, GDPR-01, GDPR-02, GDPR-03, GDPR-04, DOCS-01, DOCS-02, DOCS-03
 
 ## Progress
 
@@ -48,7 +48,7 @@ See: `.planning/PROJECT.md`
 | 14    | Security Hardening                         | Not Started |
 | 15    | Testing Strategy                           | Not Started |
 | 16    | Containerization & Kubernetes              | Completed   |
-| 17    | CI/CD Pipeline                             | Planned     |
+| 17    | CI/CD Pipeline                             | Completed   |
 | 18    | Observability, Cloud, GDPR & Documentation | Not Started |
 
 ## Decisions Log
@@ -75,6 +75,7 @@ See: `.planning/PROJECT.md`
 - 2026-04-21: Phase 11 executed with notification APIs, platform-template fallback plus tenant overrides, 5-second outbox polling, BullMQ delivery processing, retry bookkeeping, HMAC-signed webhook delivery, config-gated SMS, and green notification-specific plus full API test suites.
 - 2026-04-26: Phase 16 planning was completed manually, then normalized to current GSD plan structure with four plans covering runtime packaging, Helm resources, traffic plus GitOps manifests, and operator validation/runbooks.
 - 2026-04-26: Phase 16 was fully executed and verified with green API, web, and ML image builds, live local Istio 90/10 canary validation, and live ArgoCD sync-wave validation against the generated Helm chart.
+- 2026-04-27: Phase 17 completed with split CI and deploy GitHub Actions workflows, GitOps Helm tag promotion through ArgoCD-watched values files, checked-in Snyk and Trivy policy files, and bounded staging API plus browser smoke before production approval.
 
 ## Blockers
 
@@ -82,4 +83,4 @@ See: `.planning/PROJECT.md`
 
 ---
 
-_State updated: 2026-04-26_
+_State updated: 2026-04-27_

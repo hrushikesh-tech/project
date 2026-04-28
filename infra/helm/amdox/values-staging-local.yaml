@@ -1,0 +1,71 @@
+hosts:
+  web: web.127.0.0.1.sslip.io
+  api: api.127.0.0.1.sslip.io
+  auth: auth.127.0.0.1.sslip.io
+
+ingress:
+  tls:
+    enabled: false
+    secretName: amdox-staging-local-tls
+
+config:
+  corsOrigin: http://web.127.0.0.1.sslip.io:8081
+  nextPublicApiUrl: http://api.127.0.0.1.sslip.io:8081
+  keycloakUrl: http://host.docker.internal:8080
+  elasticsearchNode: http://elasticsearch.staging.local:9200
+  otelExporterOtlpEndpoint: http://otel-collector.staging.local:4317
+  awsS3Bucket: amdox-erp-assets-staging-local
+  awsS3Endpoint: http://object-storage.staging.local
+
+externalServices:
+  keycloak:
+    url: http://host.docker.internal:8080
+  elasticsearch:
+    url: http://elasticsearch.staging.local:9200
+  objectStorage:
+    bucket: amdox-erp-assets-staging-local
+    endpoint: http://object-storage.staging.local
+  otlp:
+    endpoint: http://otel-collector.staging.local:4317
+
+web:
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+
+api:
+  replicaCount: 1
+  probes:
+    path: /api/v1/health
+  autoscaling:
+    enabled: false
+
+apiWorker:
+  replicaCount: 0
+  autoscaling:
+    enabled: false
+
+mlService:
+  replicaCount: 0
+  autoscaling:
+    enabled: false
+
+secretPlaceholders:
+  data:
+    DATABASE_URL: postgresql://root:rootpassword@host.docker.internal:5432/amdox_erp
+    REDIS_URL: redis://host.docker.internal:6379
+    REDIS_DISABLED: "false"
+    KEYCLOAK_CLIENT_SECRET: amdox-api-dev-secret
+    AUTH_MAX_CONCURRENT_SESSIONS: "50"
+
+networkPolicy:
+  enabled: false
+
+resourceQuota:
+  enabled: false
+
+limitRange:
+  enabled: false
+
+istio:
+  enabled: false

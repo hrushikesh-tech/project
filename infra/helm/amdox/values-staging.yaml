@@ -29,10 +29,19 @@ externalServices:
 
 web:
   replicaCount: 2
+  image:
+    tag: latest
 
 api:
   replicaCount: 2
+  image:
+    tag: latest
 
 apiWorker:
   replicaCount: 2
+  image:
+    tag: latest
 
+mlService:
+  image:
+    tag: latest

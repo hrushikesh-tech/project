@@ -22,9 +22,23 @@ export type BackendTokenResponse = {
 };
 
 const DEFAULT_API_URL = "http://localhost:3001/api/v1";
+const DEFAULT_AUTH_TENANT_ID = "tenant-1";
 
 function getApiBaseUrl() {
-  return process.env.AUTH_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? DEFAULT_API_URL;
+  return (
+    process.env.AUTH_API_URL ??
+    process.env.NEXT_PUBLIC_API_URL ??
+    DEFAULT_API_URL
+  );
+}
+
+function getAuthTenantId() {
+  return (
+    process.env.AUTH_TENANT_ID ??
+    process.env.NEXT_PUBLIC_AUTH_TENANT_ID ??
+    process.env.PHASE15_TENANT_ID ??
+    DEFAULT_AUTH_TENANT_ID
+  );
 }
 
 async function authRequest<T>(path: string, init: RequestInit): Promise<T> {
@@ -38,10 +52,9 @@ async function authRequest<T>(path: string, init: RequestInit): Promise<T> {
   });
 
   const contentType = response.headers.get("content-type") ?? "";
-  const payload =
-    contentType.includes("application/json")
-      ? ((await response.json()) as T | ApiEnvelope<T> | ApiErrorEnvelope)
-      : await response.text();
+  const payload = contentType.includes("application/json")
+    ? ((await response.json()) as T | ApiEnvelope<T> | ApiErrorEnvelope)
+    : await response.text();
 
   if (!response.ok) {
     throw parseApiError(
@@ -59,6 +72,7 @@ async function fetchProfile(accessToken: string) {
     method: "GET",
     headers: {
       Authorization: `Bearer ${accessToken}`,
+      "x-tenant-id": getAuthTenantId(),
     },
   });
 }
@@ -73,12 +87,16 @@ export async function loginWithPassword(username: string, password: string) {
   return { tokens, user };
 }
 
-export async function logoutWithToken(accessToken: string, refreshToken: string) {
+export async function logoutWithToken(
+  accessToken: string,
+  refreshToken: string,
+) {
   try {
     await authRequest<{ message: string }>("/auth/logout", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
+        "x-tenant-id": getAuthTenantId(),
       },
       body: JSON.stringify({ refresh_token: refreshToken }),
     });

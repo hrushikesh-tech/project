@@ -22,6 +22,11 @@ export default defineConfig({
     ? undefined
     : {
         command: `pnpm --filter @amdox/web exec next dev -p ${devServerPort}`,
+        env: {
+          ...process.env,
+          AUTH_SECRET:
+            process.env.AUTH_SECRET ?? "phase17-playwright-auth-secret",
+        },
         url: baseURL,
         reuseExistingServer: false,
         timeout: 180000,

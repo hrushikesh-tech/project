@@ -1,16 +1,33 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from "@prisma/client";
 
 // Read operations that need deletedAt filtering
 const READ_OPERATIONS = [
-  'findMany',
-  'findFirst',
-  'findUnique',
-  'findFirstOrThrow',
-  'findUniqueOrThrow',
-  'count',
-  'aggregate',
-  'groupBy',
+  "findMany",
+  "findFirst",
+  "findUnique",
+  "findFirstOrThrow",
+  "findUniqueOrThrow",
+  "count",
+  "aggregate",
+  "groupBy",
 ];
+
+type QueryArgs = {
+  where?: Record<string, unknown>;
+};
+
+type ModelMutationMethods = {
+  update: (args: {
+    where?: Record<string, unknown>;
+    data: { deletedAt: Date };
+  }) => unknown;
+  updateMany: (args: {
+    where?: Record<string, unknown>;
+    data: { deletedAt: Date };
+  }) => unknown;
+};
+
+type ModelContext = Record<string, ModelMutationMethods>;
 
 /**
  * Prisma Client Extension for soft-delete behavior.
@@ -23,40 +40,42 @@ export const softDeleteExtension = Prisma.defineExtension({
   query: {
     $allModels: {
       async $allOperations({ model, operation, args, query }) {
+        const queryArgs = (args ?? {}) as QueryArgs;
+
         // Handle opt-out mechanism: includeDeleted flag
-        const where = (args as any)?.where;
+        const where = queryArgs.where;
         if (where?.includeDeleted === true) {
           // Remove the flag and skip soft-delete filtering
-          delete (args as any).where.includeDeleted;
-          return query(args);
+          delete queryArgs.where?.includeDeleted;
+          return query(queryArgs);
         }
 
         // Inject deletedAt: null filter for read operations
         if (READ_OPERATIONS.includes(operation)) {
-          (args as any).where = {
-            ...(args as any).where,
+          queryArgs.where = {
+            ...queryArgs.where,
             deletedAt: null,
           };
         }
 
         // Convert delete to soft delete (update with deletedAt timestamp)
-        if (operation as string === 'delete') {
-          const context = Prisma.getExtensionContext(this) as any;
+        if ((operation as string) === "delete") {
+          const context = Prisma.getExtensionContext(this) as ModelContext;
           return context[model as string].update({
-            where: (args as any).where,
+            where: queryArgs.where,
             data: { deletedAt: new Date() },
           });
         }
 
-        if (operation === 'deleteMany') {
-          const context = Prisma.getExtensionContext(this) as any;
+        if (operation === "deleteMany") {
+          const context = Prisma.getExtensionContext(this) as ModelContext;
           return context[model as string].updateMany({
-            where: (args as any).where,
+            where: queryArgs.where,
             data: { deletedAt: new Date() },
           });
         }
 
-        return query(args);
+        return query(queryArgs);
       },
     },
   },

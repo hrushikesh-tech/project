@@ -1,0 +1,6 @@
+# Phase 17 reviewed exceptions file.
+# Add entries only with an owner, rationale, and expiry in the surrounding commit history.
+vulnerabilities: []
+misconfigurations: []
+secrets: []
+licenses: []

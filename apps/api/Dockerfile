@@ -16,14 +16,20 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 RUN pnpm --filter @amdox/api... build
-RUN pnpm deploy --filter=@amdox/api --prod /opt/api
 
-FROM gcr.io/distroless/nodejs20-debian12:nonroot AS runtime
-WORKDIR /app
+FROM node:20-bookworm-slim AS runtime
+WORKDIR /app/apps/api
 ENV NODE_ENV=production
 ENV PORT_API=3001
 ENV CORS_ORIGIN=http://localhost:3000
 ENV CLUSTER_WORKERS=1
-COPY --from=build /opt/api /app
-CMD ["dist/src/main.js"]
+COPY --from=build /app/node_modules /app/node_modules
+COPY --from=build /app/apps/api/dist /app/apps/api/dist
+COPY --from=build /app/apps/api/node_modules /app/apps/api/node_modules
+COPY --from=build /app/apps/api/package.json /app/apps/api/package.json
+COPY --from=build /app/packages/config /app/packages/config
+COPY --from=build /app/packages/db /app/packages/db
+COPY --from=build /app/packages/db/node_modules /app/packages/db/node_modules
+COPY --from=build /app/packages/types /app/packages/types
+CMD ["node", "dist/src/main.js"]
 

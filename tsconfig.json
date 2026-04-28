@@ -1,7 +1,7 @@
 {
   "extends": "./packages/config/base.json",
   "compilerOptions": {
-    "ignoreDeprecations": "5.0",
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@amdox/*": ["packages/*/src"]

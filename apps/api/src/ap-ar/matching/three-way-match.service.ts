@@ -1,6 +1,49 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@amdox/db';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@amdox/db";
+import { PrismaService } from "../../prisma/prisma.service";
+
+type TenantDbClient = ReturnType<PrismaService["forTenant"]>;
+type MatchableInvoice = Awaited<
+  ReturnType<TenantDbClient["invoice"]["findFirst"]>
+>;
+type MatchablePurchaseOrder = Awaited<
+  ReturnType<TenantDbClient["purchaseOrder"]["findFirst"]>
+>;
+type MatchableGoodsReceipt = Awaited<
+  ReturnType<TenantDbClient["goodsReceipt"]["findMany"]>
+>[number];
+type ExistingThreeWayMatch = Awaited<
+  ReturnType<TenantDbClient["threeWayMatch"]["findFirst"]>
+>;
+
+type MatchPayload = {
+  matchStatus: "MATCHED" | "MISMATCHED" | "MANUAL_REVIEW";
+  amountMatch: boolean;
+  quantityMatch: boolean;
+  lineItemSimilarity: Prisma.Decimal;
+  variancePercent: Prisma.Decimal | null;
+  mismatchReasons: string[];
+};
+
+type InvoiceLineForMatching = {
+  description: string;
+  quantity: Prisma.Decimal | bigint | number | string;
+};
+
+type PurchaseOrderLineForMatching = {
+  id: string;
+  description: string;
+  receivedQuantity: Prisma.Decimal | bigint | number | string;
+};
+
+type GoodsReceiptLineForMatching = {
+  purchaseOrderLineId: string;
+  quantityReceived: Prisma.Decimal | bigint | number | string;
+};
+
+type GoodsReceiptForMatching = {
+  lines?: GoodsReceiptLineForMatching[] | null;
+};
 
 @Injectable()
 export class ThreeWayMatchService {
@@ -22,20 +65,20 @@ export class ThreeWayMatchService {
     });
 
     if (!invoice) {
-      throw new NotFoundException('Invoice not found.');
+      throw new NotFoundException("Invoice not found.");
     }
 
-    if (invoice.type !== 'PAYABLE') {
+    if (invoice.type !== "PAYABLE") {
       return {
         invoice,
         purchaseOrder: invoice.purchaseOrder ?? null,
         goodsReceipts: [],
-        matchStatus: 'MANUAL_REVIEW',
+        matchStatus: "MANUAL_REVIEW",
         amountMatch: false,
         quantityMatch: false,
-        lineItemSimilarity: new Prisma.Decimal('0'),
+        lineItemSimilarity: new Prisma.Decimal("0"),
         variancePercent: null,
-        mismatchReasons: ['Receivable invoices stay review-first in Phase 4.'],
+        mismatchReasons: ["Receivable invoices stay review-first in Phase 4."],
       };
     }
 
@@ -54,12 +97,12 @@ export class ThreeWayMatchService {
     const mismatchReasons: string[] = [];
 
     if (!purchaseOrder) {
-      mismatchReasons.push('Purchase order context is missing.');
+      mismatchReasons.push("Purchase order context is missing.");
       return this.persistMatchResult(db, invoice, null, [], {
-        matchStatus: 'MISMATCHED',
+        matchStatus: "MISMATCHED",
         amountMatch: false,
         quantityMatch: false,
-        lineItemSimilarity: new Prisma.Decimal('0'),
+        lineItemSimilarity: new Prisma.Decimal("0"),
         variancePercent: null,
         mismatchReasons,
       });
@@ -70,11 +113,16 @@ export class ThreeWayMatchService {
       include: { lines: true },
     });
 
-    const variancePercent = calculateVariancePercent(invoice.totalAmount, purchaseOrder.totalAmount);
-    const amountMatch = variancePercent.lte(new Prisma.Decimal('1'));
+    const variancePercent = calculateVariancePercent(
+      invoice.totalAmount,
+      purchaseOrder.totalAmount,
+    );
+    const amountMatch = variancePercent.lte(new Prisma.Decimal("1"));
 
     if (!amountMatch) {
-      mismatchReasons.push(`Amount variance exceeds 1%. Actual variance: ${variancePercent.toString()}%.`);
+      mismatchReasons.push(
+        `Amount variance exceeds 1%. Actual variance: ${variancePercent.toString()}%.`,
+      );
     }
 
     const { averageSimilarity, quantityMatch } = evaluateLineMatching(
@@ -84,15 +132,17 @@ export class ThreeWayMatchService {
     );
 
     if (!quantityMatch) {
-      mismatchReasons.push('Received quantities do not cover the invoiced quantities.');
+      mismatchReasons.push(
+        "Received quantities do not cover the invoiced quantities.",
+      );
     }
-    if (averageSimilarity.lt(new Prisma.Decimal('0.85'))) {
+    if (averageSimilarity.lt(new Prisma.Decimal("0.85"))) {
       mismatchReasons.push(
         `Line similarity is below 0.85. Actual similarity: ${averageSimilarity.toString()}.`,
       );
     }
 
-    const matchStatus = mismatchReasons.length === 0 ? 'MATCHED' : 'MISMATCHED';
+    const matchStatus = mismatchReasons.length === 0 ? "MATCHED" : "MISMATCHED";
 
     return this.persistMatchResult(db, invoice, purchaseOrder, goodsReceipts, {
       matchStatus,
@@ -105,19 +155,22 @@ export class ThreeWayMatchService {
   }
 
   private async persistMatchResult(
-    db: any,
-    invoice: any,
-    purchaseOrder: any,
-    goodsReceipts: any[],
-    payload: any,
+    db: TenantDbClient,
+    invoice: NonNullable<MatchableInvoice>,
+    purchaseOrder: MatchablePurchaseOrder,
+    goodsReceipts: MatchableGoodsReceipt[],
+    payload: MatchPayload,
   ) {
-    const existing = await db.threeWayMatch.findFirst({
+    const existing: ExistingThreeWayMatch = await db.threeWayMatch.findFirst({
       where: { invoiceId: invoice.id },
     });
 
     const data = {
       invoiceId: invoice.id,
-      purchaseOrderId: purchaseOrder?.id ?? existing?.purchaseOrderId ?? invoice.purchaseOrderId,
+      purchaseOrderId:
+        purchaseOrder?.id ??
+        existing?.purchaseOrderId ??
+        invoice.purchaseOrderId,
       goodsReceiptId: goodsReceipts[0]?.id ?? existing?.goodsReceiptId,
       matchStatus: payload.matchStatus,
       amountMatch: payload.amountMatch,
@@ -125,7 +178,7 @@ export class ThreeWayMatchService {
       lineItemSimilarity: payload.lineItemSimilarity,
       variancePercent: payload.variancePercent,
       mismatchReasons: payload.mismatchReasons,
-      matchedAt: payload.matchStatus === 'MATCHED' ? new Date() : null,
+      matchedAt: payload.matchStatus === "MATCHED" ? new Date() : null,
       reviewedAt: null,
       reviewedBy: null,
     };
@@ -151,19 +204,28 @@ export class ThreeWayMatchService {
 
 function calculateVariancePercent(invoiceTotal: bigint, poTotal: bigint) {
   if (poTotal === 0n) {
-    return new Prisma.Decimal(invoiceTotal === 0n ? '0' : '100');
+    return new Prisma.Decimal(invoiceTotal === 0n ? "0" : "100");
   }
 
-  return new Prisma.Decimal((invoiceTotal > poTotal ? invoiceTotal - poTotal : poTotal - invoiceTotal).toString())
+  return new Prisma.Decimal(
+    (invoiceTotal > poTotal
+      ? invoiceTotal - poTotal
+      : poTotal - invoiceTotal
+    ).toString(),
+  )
     .div(new Prisma.Decimal(poTotal.toString()))
-    .mul(new Prisma.Decimal('100'))
+    .mul(new Prisma.Decimal("100"))
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
 }
 
-function evaluateLineMatching(invoiceLines: any[], purchaseOrderLines: any[], goodsReceipts: any[]) {
+function evaluateLineMatching(
+  invoiceLines: InvoiceLineForMatching[],
+  purchaseOrderLines: PurchaseOrderLineForMatching[],
+  goodsReceipts: GoodsReceiptForMatching[],
+) {
   if (!invoiceLines.length || !purchaseOrderLines.length) {
     return {
-      averageSimilarity: new Prisma.Decimal('0'),
+      averageSimilarity: new Prisma.Decimal("0"),
       quantityMatch: false,
     };
   }
@@ -171,7 +233,9 @@ function evaluateLineMatching(invoiceLines: any[], purchaseOrderLines: any[], go
   const receiptQuantityByLineId = new Map();
   for (const goodsReceipt of goodsReceipts) {
     for (const line of goodsReceipt.lines ?? []) {
-      const current = receiptQuantityByLineId.get(line.purchaseOrderLineId) ?? new Prisma.Decimal('0');
+      const current =
+        receiptQuantityByLineId.get(line.purchaseOrderLineId) ??
+        new Prisma.Decimal("0");
       receiptQuantityByLineId.set(
         line.purchaseOrderLineId,
         current.add(new Prisma.Decimal(line.quantityReceived.toString())),
@@ -183,12 +247,15 @@ function evaluateLineMatching(invoiceLines: any[], purchaseOrderLines: any[], go
   let quantityMatch = true;
 
   for (const invoiceLine of invoiceLines) {
-    let bestSimilarity = new Prisma.Decimal('0');
+    let bestSimilarity = new Prisma.Decimal("0");
     let matchedLine = null;
 
     for (const poLine of purchaseOrderLines) {
       const similarity = new Prisma.Decimal(
-        calculateTokenSimilarity(invoiceLine.description, poLine.description).toFixed(2),
+        calculateTokenSimilarity(
+          invoiceLine.description,
+          poLine.description,
+        ).toFixed(2),
       );
       if (similarity.gt(bestSimilarity)) {
         bestSimilarity = similarity;
@@ -207,16 +274,20 @@ function evaluateLineMatching(invoiceLines: any[], purchaseOrderLines: any[], go
       receiptQuantityByLineId.get(matchedLine.id) ??
       new Prisma.Decimal(matchedLine.receivedQuantity.toString());
 
-    if (receivedQuantity.lt(new Prisma.Decimal(invoiceLine.quantity.toString()))) {
+    if (
+      receivedQuantity.lt(new Prisma.Decimal(invoiceLine.quantity.toString()))
+    ) {
       quantityMatch = false;
     }
   }
 
   const total = similarities.reduce(
     (sum, current) => sum.add(current),
-    new Prisma.Decimal('0'),
+    new Prisma.Decimal("0"),
   );
-  const averageSimilarity = total.div(new Prisma.Decimal(String(similarities.length)));
+  const averageSimilarity = total.div(
+    new Prisma.Decimal(String(similarities.length)),
+  );
 
   return {
     averageSimilarity,
@@ -247,7 +318,7 @@ function tokenize(value: string) {
   return new Set(
     value
       .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/[^a-z0-9\s]/g, " ")
       .split(/\s+/)
       .filter(Boolean),
   );

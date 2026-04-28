@@ -1,25 +1,39 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from "@prisma/client";
 
 // Models that do NOT have tenantId - skip tenant filtering for these
-const SYSTEM_MODELS = ['Tenant', 'TaxSlab'];
+const SYSTEM_MODELS = ["Tenant", "TaxSlab"];
 
 // Read operations that need WHERE clause injection
 const READ_OPERATIONS = [
-  'findMany',
-  'findFirst',
-  'findUnique',
-  'findFirstOrThrow',
-  'findUniqueOrThrow',
-  'count',
-  'aggregate',
-  'groupBy',
+  "findMany",
+  "findFirst",
+  "findUnique",
+  "findFirstOrThrow",
+  "findUniqueOrThrow",
+  "count",
+  "aggregate",
+  "groupBy",
 ];
 
 // Write operations that need WHERE clause injection
-const WRITE_OPERATIONS = ['update', 'updateMany', 'delete', 'deleteMany', 'upsert'];
+const WRITE_OPERATIONS = [
+  "update",
+  "updateMany",
+  "delete",
+  "deleteMany",
+  "upsert",
+];
 
 // Create operations that need DATA injection
-const CREATE_OPERATIONS = ['create', 'createMany', 'createManyAndReturn'];
+const CREATE_OPERATIONS = ["create", "createMany", "createManyAndReturn"];
+
+type TenantRecord = Record<string, unknown>;
+
+type QueryArgs = {
+  where?: TenantRecord;
+  data?: TenantRecord | TenantRecord[];
+  create?: TenantRecord;
+};
 
 /**
  * Creates a Prisma Client Extension that automatically injects tenantId
@@ -34,43 +48,51 @@ export const createTenantExtension = (tenantId: string) =>
     query: {
       $allModels: {
         async $allOperations({ model, operation, args, query }) {
+          const queryArgs = (args ?? {}) as QueryArgs;
+
           if (SYSTEM_MODELS.includes(model as string)) {
-            return query(args);
+            return query(queryArgs);
           }
 
-          if (!tenantId || tenantId === '*') {
+          if (!tenantId || tenantId === "*") {
             throw new Error(
               `Tenant context required - cannot execute ${operation} on ${model} without tenantId`,
             );
           }
 
           if (READ_OPERATIONS.includes(operation)) {
-            (args as any).where = { ...(args as any).where, tenantId };
+            queryArgs.where = { ...queryArgs.where, tenantId };
           }
 
           if (CREATE_OPERATIONS.includes(operation)) {
-            if (operation === 'createMany' || operation === 'createManyAndReturn') {
-              const data = (args as any).data;
+            if (
+              operation === "createMany" ||
+              operation === "createManyAndReturn"
+            ) {
+              const data = queryArgs.data;
               if (Array.isArray(data)) {
-                (args as any).data = data.map((item: any) => ({
+                queryArgs.data = data.map((item) => ({
                   ...item,
                   tenantId,
                 }));
               }
             } else {
-              (args as any).data = { ...(args as any).data, tenantId };
+              queryArgs.data = {
+                ...(queryArgs.data as TenantRecord | undefined),
+                tenantId,
+              };
             }
           }
 
           if (WRITE_OPERATIONS.includes(operation)) {
-            (args as any).where = { ...(args as any).where, tenantId };
+            queryArgs.where = { ...queryArgs.where, tenantId };
           }
 
-          if (operation === 'upsert') {
-            (args as any).create = { ...(args as any).create, tenantId };
+          if (operation === "upsert") {
+            queryArgs.create = { ...queryArgs.create, tenantId };
           }
 
-          return query(args);
+          return query(queryArgs);
         },
       },
     },

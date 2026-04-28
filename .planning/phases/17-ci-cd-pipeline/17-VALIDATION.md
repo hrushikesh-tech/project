@@ -47,16 +47,17 @@ This validation plan covers planning completeness and execution-time evidence fo
 
 - [x] `.planning/phases/17-ci-cd-pipeline/17-RESEARCH.md` - research-backed implementation direction before planning
 - [x] `.planning/phases/17-ci-cd-pipeline/17-VALIDATION.md` - the phase validation contract itself
-- [ ] `.github/workflows/ci.yml` - PR and `main` validation workflow
-- [ ] `.github/workflows/deploy.yml` - trusted promotion workflow
-- [ ] `scripts/release/update-image-tags.mjs` - GitOps values-update helper used by promotion
-- [ ] `.snyk` - checked-in reviewed exception policy
-- [ ] `.trivyignore.yaml` - checked-in reviewed exception policy
+- [x] `.github/workflows/ci.yml` - PR and `main` validation workflow
+- [x] `.github/workflows/deploy.yml` - trusted promotion workflow
+- [x] `scripts/release/update-image-tags.mjs` - GitOps values-update helper used by promotion
+- [x] `.snyk` - checked-in reviewed exception policy
+- [x] `.trivyignore.yaml` - checked-in reviewed exception policy
 
 ## Verification Contract
 
 ### Planned Command Evidence
 
+- `pnpm verify:phase17:foundation`
 - `pnpm lint`
 - `pnpm typecheck`
 - `pnpm --filter @amdox/api run test:unit`
@@ -65,12 +66,12 @@ This validation plan covers planning completeness and execution-time evidence fo
 - `pnpm --filter @amdox/web run test:e2e`
 - `pnpm build`
 - `pnpm security:secrets`
-- `snyk test --severity-threshold=high`
-- `trivy fs --exit-code 1 --severity HIGH,CRITICAL .`
-- `node scripts/release/update-image-tags.mjs --file infra/helm/amdox/values-staging.yaml --set-tag test-sha --dry-run`
-- `node scripts/release/update-image-tags.mjs --file infra/helm/amdox/values-prod.yaml --set-tag test-sha --dry-run`
-- `PHASE15_SMOKE_BASE_URL=https://api.staging.amdox.example pnpm --filter @amdox/api run test:smoke`
-- `PLAYWRIGHT_EXTERNAL_SERVER=1 PLAYWRIGHT_BASE_URL=https://web.staging.amdox.example pnpm --filter @amdox/web run test:e2e -- --grep "@staging-release"`
+- `snyk test --severity-threshold=high --policy-path=.snyk`
+- `trivy fs --exit-code 1 --severity HIGH,CRITICAL --ignorefile .trivyignore.yaml .`
+- `pnpm release:tags:staging:dry-run`
+- `pnpm release:tags:prod:dry-run`
+- `PHASE15_SMOKE_BASE_URL=https://api.staging.amdox.example PHASE17_AUTH_USERNAME=... PHASE17_AUTH_PASSWORD=... pnpm verify:phase17:smoke:api`
+- `PLAYWRIGHT_EXTERNAL_SERVER=1 PLAYWRIGHT_BASE_URL=https://web.staging.amdox.example PHASE17_AUTH_USERNAME=... PHASE17_AUTH_PASSWORD=... pnpm verify:phase17:smoke:web`
 - `rg "workflow_run|environment: production|trivy|snyk|trufflehog|packages: write|contents: write" .github/workflows`
 
 ### Environment-Gated / Manual Verifications

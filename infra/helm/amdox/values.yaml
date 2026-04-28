@@ -83,7 +83,7 @@ secretPlaceholders:
 web:
   replicaCount: 2
   image:
-    repository: amdox/web
+    repository: ghcr.io/hrushikesh-tech/amdox-web
     tag: latest
     pullPolicy: IfNotPresent
   service:
@@ -111,14 +111,14 @@ web:
 api:
   replicaCount: 2
   image:
-    repository: amdox/api
+    repository: ghcr.io/hrushikesh-tech/amdox-api
     tag: latest
     pullPolicy: IfNotPresent
   canary:
     enabled: false
     replicaCount: 1
     image:
-      repository: amdox/api
+      repository: ghcr.io/hrushikesh-tech/amdox-api
       tag: canary
       pullPolicy: IfNotPresent
     stableWeight: 90
@@ -148,7 +148,7 @@ api:
 apiWorker:
   replicaCount: 1
   image:
-    repository: amdox/api
+    repository: ghcr.io/hrushikesh-tech/amdox-api
     tag: latest
     pullPolicy: IfNotPresent
   resources:
@@ -173,7 +173,7 @@ apiWorker:
 mlService:
   replicaCount: 1
   image:
-    repository: amdox/ml-service
+    repository: ghcr.io/hrushikesh-tech/amdox-ml-service
     tag: latest
     pullPolicy: IfNotPresent
   service:
@@ -203,7 +203,7 @@ cronJobs:
     enabled: false
     schedule: "0 1 * * *"
     image:
-      repository: amdox/api
+      repository: ghcr.io/hrushikesh-tech/amdox-api
       tag: latest
       pullPolicy: IfNotPresent
     command:
