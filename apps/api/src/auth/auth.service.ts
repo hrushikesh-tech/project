@@ -53,11 +53,19 @@ type UserSessionDelegate = {
   count(args: { where: Record<string, unknown> }): Promise<number>;
   findFirst(args: {
     where: Record<string, unknown>;
-    orderBy?: Record<string, "asc" | "desc"> | Array<Record<string, "asc" | "desc">>;
+    orderBy?:
+      | Record<string, "asc" | "desc">
+      | Array<Record<string, "asc" | "desc">>;
   }): Promise<UserSessionRecord | null>;
   create(args: { data: Record<string, unknown> }): Promise<UserSessionRecord>;
-  update(args: { where: Record<string, unknown>; data: Record<string, unknown> }): Promise<UserSessionRecord>;
-  updateMany(args: { where: Record<string, unknown>; data: Record<string, unknown> }): Promise<{ count: number }>;
+  update(args: {
+    where: Record<string, unknown>;
+    data: Record<string, unknown>;
+  }): Promise<UserSessionRecord>;
+  updateMany(args: {
+    where: Record<string, unknown>;
+    data: Record<string, unknown>;
+  }): Promise<{ count: number }>;
 };
 
 @Injectable()
@@ -82,7 +90,8 @@ export class AuthService implements OnModuleDestroy, OnApplicationShutdown {
     );
     this.realm = configService.get("KEYCLOAK_REALM", "amdox-erp");
     this.clientId = configService.get("KEYCLOAK_CLIENT_ID", "amdox-api");
-    this.clientSecret = configService.get<string>("KEYCLOAK_CLIENT_SECRET") ?? "";
+    this.clientSecret =
+      configService.get<string>("KEYCLOAK_CLIENT_SECRET") ?? "";
     this.maxConcurrentSessions = Number(
       configService.get("AUTH_MAX_CONCURRENT_SESSIONS", 5),
     );
@@ -143,7 +152,11 @@ export class AuthService implements OnModuleDestroy, OnApplicationShutdown {
 
     const refreshPayload = this.decodeToken(refreshToken);
     const claims = this.readClaimsFromPayload(refreshPayload);
-    const session = await this.requireActiveSession(claims.tenantId, claims.userId, claims.sessionId);
+    const session = await this.requireActiveSession(
+      claims.tenantId,
+      claims.userId,
+      claims.sessionId,
+    );
 
     if (session.revokedAt || session.status !== "ACTIVE") {
       throw new UnauthorizedException("Session has been revoked");
@@ -167,7 +180,13 @@ export class AuthService implements OnModuleDestroy, OnApplicationShutdown {
     }
 
     const refreshedClaims = this.extractSessionClaims(response);
-    await this.upsertSessionRecord(response, refreshedClaims, context, true, session.id);
+    await this.upsertSessionRecord(
+      response,
+      refreshedClaims,
+      context,
+      true,
+      session.id,
+    );
     return response;
   }
 
@@ -215,6 +234,34 @@ export class AuthService implements OnModuleDestroy, OnApplicationShutdown {
     }
 
     await this.logoutUpstream(refreshToken);
+  }
+
+  async cleanupSessionsForUser(
+    tenantId: string,
+    userId: string,
+    reason = "gdpr_erasure",
+  ) {
+    const now = new Date();
+    const result = await this.getSessionDelegate().updateMany({
+      where: {
+        tenantId,
+        userId,
+        deletedAt: null,
+      },
+      data: {
+        status: "REVOKED",
+        revokedAt: now,
+        revocationReason: reason,
+        deletedAt: now,
+      },
+    });
+
+    return {
+      tenantId,
+      userId,
+      cleanedAt: now,
+      sessionCount: result.count,
+    };
   }
 
   async isTokenBlacklisted(jti: string): Promise<boolean> {
@@ -401,7 +448,9 @@ export class AuthService implements OnModuleDestroy, OnApplicationShutdown {
     const tenantId = this.extractTenantId(payload) ?? "platform";
 
     if (!userId || !sessionId) {
-      throw new UnauthorizedException("Refresh token is missing session identity");
+      throw new UnauthorizedException(
+        "Refresh token is missing session identity",
+      );
     }
 
     return { tenantId, userId, sessionId };
@@ -423,10 +472,7 @@ export class AuthService implements OnModuleDestroy, OnApplicationShutdown {
     }
 
     const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(
-      Math.ceil(normalized.length / 4) * 4,
-      "=",
-    );
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
 
     return JSON.parse(
       Buffer.from(padded, "base64").toString("utf8"),

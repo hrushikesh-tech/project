@@ -12,6 +12,7 @@ import { PayslipPdfService } from "../pdf/payslip-pdf.service";
 import { PayrollLedgerPostingService } from "../posting/payroll-ledger-posting.service";
 import { PayslipStorageService } from "../storage/payslip-storage.service";
 import { PAYROLL_RUNS_QUEUE, PayrollRunJobPayload } from "./payroll.queue";
+import { recordPayrollRunDuration } from "../../telemetry/metrics";
 
 const BATCH_SIZE = 100;
 
@@ -44,6 +45,7 @@ export class PayrollProcessor extends WorkerHost {
     }
 
     let glPosted = Boolean(run.glJournalEntryId);
+    const runStartedAt = run.startedAt ?? new Date();
 
     try {
       await db.payrollRun.update({
@@ -97,6 +99,15 @@ export class PayrollProcessor extends WorkerHost {
         status: "completed",
         message: "Payroll run completed successfully.",
       });
+      recordPayrollRunDuration({
+        tenantId,
+        route: "payroll.processor",
+        outcome: "completed",
+        durationSeconds: this.calculateDurationSeconds(
+          runStartedAt,
+          new Date(),
+        ),
+      });
 
       return { payrollRunId, journalEntryId: journalEntry.id };
     } catch (error) {
@@ -125,6 +136,15 @@ export class PayrollProcessor extends WorkerHost {
         payrollRunId,
         status: "failed",
         message,
+      });
+      recordPayrollRunDuration({
+        tenantId,
+        route: "payroll.processor",
+        outcome: "failed",
+        durationSeconds: this.calculateDurationSeconds(
+          runStartedAt,
+          new Date(),
+        ),
       });
       throw error;
     }
@@ -319,5 +339,9 @@ export class PayrollProcessor extends WorkerHost {
         },
       },
     });
+  }
+
+  private calculateDurationSeconds(startedAt: Date, endedAt: Date) {
+    return Math.max((endedAt.getTime() - startedAt.getTime()) / 1000, 0);
   }
 }

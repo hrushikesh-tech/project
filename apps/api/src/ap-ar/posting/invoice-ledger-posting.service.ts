@@ -1,10 +1,8 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { InvoicePostingConfigurationException } from '@amdox/types';
-import { PrismaService } from '../../prisma/prisma.service';
-import { FinanceService } from '../../finance/finance.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InvoicePostingConfigurationException } from "@amdox/types";
+import { PrismaService } from "../../prisma/prisma.service";
+import { FinanceService } from "../../finance/finance.service";
+import { recordInvoiceProcessed } from "../../telemetry/metrics";
 
 @Injectable()
 export class InvoiceLedgerPostingService {
@@ -25,16 +23,16 @@ export class InvoiceLedgerPostingService {
     });
 
     if (!invoice) {
-      throw new NotFoundException('Invoice not found.');
+      throw new NotFoundException("Invoice not found.");
     }
 
-    if (invoice.type !== 'PAYABLE') {
+    if (invoice.type !== "PAYABLE") {
       return invoice;
     }
 
-    if (invoice.threeWayMatch?.matchStatus !== 'MATCHED') {
+    if (invoice.threeWayMatch?.matchStatus !== "MATCHED") {
       throw new InvoicePostingConfigurationException(
-        'Invoice posting is only allowed after a successful payable match.',
+        "Invoice posting is only allowed after a successful payable match.",
       );
     }
 
@@ -53,19 +51,22 @@ export class InvoiceLedgerPostingService {
           account.id !== invoice.vendor?.payablesAccountId &&
           account.isActive &&
           !account.deletedAt &&
-          account.type === 'EXPENSE',
+          account.type === "EXPENSE",
       ) ??
       entityAccounts.find(
         (account) =>
           account.id !== invoice.vendor?.payablesAccountId &&
           account.isActive &&
           !account.deletedAt &&
-          account.type === 'ASSET',
+          account.type === "ASSET",
       );
 
-    if (!recognitionAccount || recognitionAccount.id === invoice.vendor.payablesAccountId) {
+    if (
+      !recognitionAccount ||
+      recognitionAccount.id === invoice.vendor.payablesAccountId
+    ) {
       throw new InvoicePostingConfigurationException(
-        'Invoice posting requires an expense or inventory recognition account in the same legal entity.',
+        "Invoice posting requires an expense or inventory recognition account in the same legal entity.",
       );
     }
 
@@ -81,14 +82,14 @@ export class InvoiceLedgerPostingService {
 
     if (!postingPeriod) {
       throw new InvoicePostingConfigurationException(
-        'Invoice posting requires an open fiscal period covering the invoice issue date.',
+        "Invoice posting requires an open fiscal period covering the invoice issue date.",
       );
     }
 
     await db.invoice.update({
       where: { id: invoice.id },
       data: {
-        status: 'APPROVED',
+        status: "APPROVED",
         reviewReason: null,
       },
     });
@@ -114,19 +115,27 @@ export class InvoiceLedgerPostingService {
 
     await this.financeService.postJournalEntry(journalEntry.id);
 
-    return db.invoice.update({
+    const postedInvoice = await db.invoice.update({
       where: { id: invoice.id },
       data: {
-        status: 'POSTED',
+        status: "POSTED",
         postedJournalEntryId: journalEntry.id,
       },
       include: {
         postedJournalEntry: true,
       },
     });
+    recordInvoiceProcessed({
+      tenantId,
+      route: "ap-ar.invoice.posted",
+    });
+    return postedInvoice;
   }
 
-  async validateReceivablePostingConfiguration(tenantId: string, invoiceId: string) {
+  async validateReceivablePostingConfiguration(
+    tenantId: string,
+    invoiceId: string,
+  ) {
     const db = this.prisma.forTenant(tenantId);
     const invoice = await db.invoice.findFirst({
       where: { id: invoiceId },
@@ -134,16 +143,16 @@ export class InvoiceLedgerPostingService {
     });
 
     if (!invoice) {
-      throw new NotFoundException('Invoice not found.');
+      throw new NotFoundException("Invoice not found.");
     }
 
-    if (invoice.type !== 'RECEIVABLE') {
+    if (invoice.type !== "RECEIVABLE") {
       return invoice;
     }
 
     if (!invoice.customer?.receivablesAccountId) {
       throw new InvoicePostingConfigurationException(
-        'Receivable invoices require an explicit customer receivables control account before posting.',
+        "Receivable invoices require an explicit customer receivables control account before posting.",
       );
     }
 

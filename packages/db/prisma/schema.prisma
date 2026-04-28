@@ -53,6 +53,19 @@ enum UserSessionStatus {
   EXPIRED
 }
 
+enum GdprRequestKind {
+  EXPORT
+  ERASURE
+}
+
+enum GdprRequestStatus {
+  REQUESTED
+  PROCESSING
+  EXPORT_READY
+  PSEUDONYMIZED
+  FAILED
+}
+
 // =============================================================================
 // Section 2 — Core / System Models
 // =============================================================================
@@ -145,6 +158,29 @@ model AuditLog {
   @@index([tenantId, timestamp])
   @@index([entityType, entityId])
   @@index([userId])
+}
+
+model GdprRequest {
+  id                  String            @id @default(cuid())
+  tenantId            String
+  subjectUserId       String
+  requestedByUserId   String?
+  kind                GdprRequestKind
+  status              GdprRequestStatus  @default(REQUESTED)
+  traceId             String            @unique
+  processingStartedAt DateTime?
+  completedAt         DateTime?
+  failureReason       String?
+  artifactMetadata    Json?
+  retentionNotes      Json?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  deletedAt           DateTime?
+
+  @@index([tenantId, subjectUserId])
+  @@index([tenantId, kind, status])
+  @@index([tenantId, requestedByUserId])
+  @@index([traceId])
 }
 
 // =============================================================================

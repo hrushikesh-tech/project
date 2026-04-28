@@ -7,6 +7,7 @@ import {
   InventoryMovementType,
 } from "@amdox/types";
 import { PrismaService } from "../prisma/prisma.service";
+import { recordForecastMape } from "../telemetry/metrics";
 import { ForecastingClient } from "./forecasting.client";
 import type { PredictionRow, TrainedModelSummary } from "./forecasting.client";
 import { serializeForecastRecord } from "./forecasting.serialization";
@@ -166,6 +167,12 @@ export class ForecastingService {
         isActive: true,
         promotedAt: new Date(),
       },
+    });
+    recordForecastMape({
+      tenantId,
+      productId,
+      modelType: promoted.modelType,
+      mapePercent: promoted.mape.toNumber(),
     });
 
     await this.refreshPredictionsForModel(tenantId, productId, promoted);

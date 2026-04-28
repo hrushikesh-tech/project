@@ -1,0 +1,52 @@
+groups:
+  - name: amdox-observability
+    rules:
+      - alert: AmdoxAPIP95LatencyHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(runtime_request_duration_seconds_bucket{runtime="api"}[5m]))) > 0.3
+        for: 10m
+        labels:
+          severity: warning
+          scope: api
+        annotations:
+          summary: "API p95 latency is above 300ms"
+          description: "The API request latency p95 has been above 300ms for 10 minutes."
+
+      - alert: AmdoxAPIErrorsHigh
+        expr: sum(rate(runtime_request_duration_seconds_count{runtime="api",outcome="error"}[5m])) / clamp_min(sum(rate(runtime_request_duration_seconds_count{runtime="api"}[5m])), 0.001) > 0.01
+        for: 10m
+        labels:
+          severity: warning
+          scope: api
+        annotations:
+          summary: "API error rate is above 1%"
+          description: "The API error rate has been above 1% for 10 minutes."
+
+      - alert: AmdoxDBConnectionPressureHigh
+        expr: max_over_time(pg_stat_activity_count[5m]) / clamp_min(max_over_time(pg_settings_max_connections[5m]), 1) > 0.9
+        for: 10m
+        labels:
+          severity: warning
+          scope: database
+        annotations:
+          summary: "Database connection pressure is high"
+          description: "Database activity is consuming more than 90% of configured connections. This alert depends on the environment's PostgreSQL exporter or equivalent DB pressure signal."
+
+      - alert: AmdoxPayrollJobFailed
+        expr: increase(payroll_run_duration_seconds_count{outcome="failed"}[15m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          scope: payroll
+        annotations:
+          summary: "Payroll job failed"
+          description: "At least one payroll run has failed in the last 15 minutes."
+
+      - alert: AmdoxForecastMAPEHigh
+        expr: max by (tenant_id) (forecast_mape_percent) > 20
+        for: 15m
+        labels:
+          severity: warning
+          scope: forecasting
+        annotations:
+          summary: "Forecast MAPE is above 20%"
+          description: "Forecast quality has drifted above the 20% MAPE gate for at least 15 minutes."

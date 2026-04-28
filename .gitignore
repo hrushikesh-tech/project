@@ -66,3 +66,4 @@ apps/web/test-results/
 apps/web/tsconfig.tsbuildinfo
 tests/load/last-summary.json
 scripts/security/bin/
+infra/terraform/.terraform/

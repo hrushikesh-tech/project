@@ -12,6 +12,7 @@ import { PayrollModule } from "./payroll/payroll.module";
 import { SupplyChainModule } from "./supply-chain/supply-chain.module";
 import { ForecastingModule } from "./forecasting/forecasting.module";
 import { BiModule } from "./bi/bi.module";
+import { GdprModule } from "./gdpr/gdpr.module";
 import { ProjectManagementModule } from "./project-management/project-management.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { BiGraphqlModule } from "./bi/graphql/bi-graphql.module";
@@ -40,6 +41,7 @@ import { RateLimitGuard } from "./common/security/rate-limit.guard";
     SupplyChainModule,
     ForecastingModule,
     BiModule,
+    GdprModule,
     BiGraphqlModule,
     ProjectManagementModule,
     NotificationsModule,

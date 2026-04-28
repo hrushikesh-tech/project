@@ -1,4 +1,8 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
@@ -71,5 +75,19 @@ export class BiReportStorageService {
       return `${this.endpoint.replace(/\/$/, "")}/${this.bucket}/${key}`;
     }
     return `https://s3.amazonaws.com/${this.bucket}/${key}`;
+  }
+
+  async deleteArtifact(key: string) {
+    await this.client.send(
+      new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      }),
+    );
+
+    return {
+      bucket: this.bucket,
+      key,
+    };
   }
 }

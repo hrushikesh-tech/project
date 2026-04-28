@@ -8,11 +8,18 @@ ingress:
     secretName: amdox-prod-tls
 
 config:
+  telemetryEnabled: true
   corsOrigin: https://app.amdox.example
   nextPublicApiUrl: https://api.amdox.example
   keycloakUrl: https://auth.amdox.example
   elasticsearchNode: https://elasticsearch.prod.internal:9200
-  otelExporterOtlpEndpoint: https://otel-collector.prod.internal:4317
+  otelExporterOtlpEndpoint: https://otel-collector.prod.internal:4318
+  otelServiceNameApi: amdox-backend
+  otelServiceNameWorker: amdox-api-worker
+  otelServiceNameMl: amdox-ml-service
+  metricsPath: /metrics
+  telemetryActiveUserWindowMinutes: "15"
+  telemetrySampleRatio: "1"
   awsS3Bucket: amdox-erp-assets-prod
   awsS3Endpoint: https://object-storage.prod.internal
 
@@ -25,7 +32,7 @@ externalServices:
     bucket: amdox-erp-assets-prod
     endpoint: https://object-storage.prod.internal
   otlp:
-    endpoint: https://otel-collector.prod.internal:4317
+    endpoint: https://otel-collector.prod.internal:4318
 
 web:
   replicaCount: 3

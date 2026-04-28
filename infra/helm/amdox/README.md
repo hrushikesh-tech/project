@@ -13,7 +13,11 @@ The chart intentionally treats the following systems as external:
 - Object storage / S3
 - OTLP collector
 
+Phase 18 keeps those dependencies on the Terraform side of the boundary. Terraform provisions the managed AWS resources and outputs the runtime hand-off values, while this chart continues to own only the Kubernetes app tier.
+
 Those integrations are consumed through `values` plus Kubernetes `Secret` references. The chart does not ship subcharts for those services.
+
+Repo-owned Prometheus alerts and Grafana dashboards live under `infra/observability/`. Keep that surface aligned with the telemetry contract emitted by the app tier; this chart should only continue to expose the app metrics endpoint and OTLP wiring that those assets depend on.
 
 ## Values And Secrets
 
@@ -24,6 +28,13 @@ Use `values.yaml` as the shared base contract and layer one environment file on 
 - `values-prod.yaml`
 
 Non-secret runtime configuration is emitted through the chart `ConfigMap`. Secret material should come from the secret named by `global.secretName`.
+
+For AWS-backed runtime wiring, consume the Terraform outputs rather than reintroducing cloud ownership here:
+
+- `s3_bucket_name`
+- `aurora_endpoint`
+- `elasticache_primary_endpoint`
+- `service_account_role_annotations`
 
 Expected `Secret` keys include:
 
@@ -90,4 +101,3 @@ The primary rollback paths are:
 - disable or retag the API canary while keeping the stable API deployment intact
 
 Because dependencies are external, chart rollback focuses on app-tier workloads and config, not stateful platform restoration.
-

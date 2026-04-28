@@ -2,6 +2,7 @@ import { Readable } from "node:stream";
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -94,5 +95,19 @@ export class InvoiceStorageService {
     }
 
     return Buffer.concat(chunks);
+  }
+
+  async deleteInvoiceSource(sourceDocumentKey: string) {
+    await this.client.send(
+      new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: sourceDocumentKey,
+      }),
+    );
+
+    return {
+      bucket: this.bucket,
+      key: sourceDocumentKey,
+    };
   }
 }

@@ -34,9 +34,10 @@ externalServices:
     bucket: amdox-erp-assets-dev
     endpoint: https://object-storage.example.internal
   otlp:
-    endpoint: http://otel-collector.example.internal:4317
+    endpoint: http://otel-collector.example.internal:4318
 
 config:
+  telemetryEnabled: true
   nodeEnv: production
   logLevel: info
   corsOrigin: https://web.dev.amdox.local
@@ -50,8 +51,13 @@ config:
   smtpPort: "1025"
   smtpUser: ""
   reportFromEmail: reports@amdox.local
-  otelExporterOtlpEndpoint: http://otel-collector.example.internal:4317
-  otelServiceName: amdox-backend
+  otelExporterOtlpEndpoint: http://otel-collector.example.internal:4318
+  otelServiceNameApi: amdox-backend
+  otelServiceNameWorker: amdox-api-worker
+  otelServiceNameMl: amdox-ml-service
+  metricsPath: /metrics
+  telemetryActiveUserWindowMinutes: "15"
+  telemetrySampleRatio: "1"
   awsRegion: us-east-1
   awsS3Bucket: amdox-erp-assets-dev
   awsS3Endpoint: https://object-storage.example.internal
@@ -222,7 +228,7 @@ networkPolicy:
     - 6379
     - 8080
     - 9200
-    - 4317
+    - 4318
 
 resourceQuota:
   enabled: true

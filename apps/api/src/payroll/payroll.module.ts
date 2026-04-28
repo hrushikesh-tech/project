@@ -44,6 +44,6 @@ const BACKGROUND_QUEUES_ENABLED = areBackgroundQueuesEnabled();
     PayslipStorageService,
     PayrollLedgerPostingService,
   ],
-  exports: [PayrollService, PayrollEngineService],
+  exports: [PayrollService, PayrollEngineService, PayslipStorageService],
 })
 export class PayrollModule {}

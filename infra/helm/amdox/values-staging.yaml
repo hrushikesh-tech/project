@@ -8,11 +8,18 @@ ingress:
     secretName: amdox-staging-tls
 
 config:
+  telemetryEnabled: true
   corsOrigin: https://web.staging.amdox.example
   nextPublicApiUrl: https://api.staging.amdox.example
   keycloakUrl: https://auth.staging.amdox.example
   elasticsearchNode: https://elasticsearch.staging.internal:9200
-  otelExporterOtlpEndpoint: https://otel-collector.staging.internal:4317
+  otelExporterOtlpEndpoint: https://otel-collector.staging.internal:4318
+  otelServiceNameApi: amdox-backend
+  otelServiceNameWorker: amdox-api-worker
+  otelServiceNameMl: amdox-ml-service
+  metricsPath: /metrics
+  telemetryActiveUserWindowMinutes: "15"
+  telemetrySampleRatio: "1"
   awsS3Bucket: amdox-erp-assets-staging
   awsS3Endpoint: https://object-storage.staging.internal
 
@@ -25,7 +32,7 @@ externalServices:
     bucket: amdox-erp-assets-staging
     endpoint: https://object-storage.staging.internal
   otlp:
-    endpoint: https://otel-collector.staging.internal:4317
+    endpoint: https://otel-collector.staging.internal:4318
 
 web:
   replicaCount: 2

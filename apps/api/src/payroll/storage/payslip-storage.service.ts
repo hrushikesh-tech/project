@@ -1,4 +1,8 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
@@ -45,6 +49,20 @@ export class PayslipStorageService {
       key,
       fileName: `${params.employeeId}.pdf`,
       contentType: "application/pdf",
+    };
+  }
+
+  async deletePayslipArtifact(storageKey: string) {
+    await this.client.send(
+      new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: storageKey,
+      }),
+    );
+
+    return {
+      bucket: this.bucket,
+      key: storageKey,
     };
   }
 }
