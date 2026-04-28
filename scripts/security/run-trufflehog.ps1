@@ -79,13 +79,13 @@ if ($docker -and $IsWindows) {
 }
 
 $localTrufflehog = Join-Path $PSScriptRoot "bin\trufflehog.exe"
-$trufflehog = if (Test-Path $localTrufflehog) {
-  Get-Item $localTrufflehog
+$trufflehogPath = if (Test-Path $localTrufflehog) {
+  $localTrufflehog
 } else {
-  Get-Command trufflehog -ErrorAction SilentlyContinue
+  (Get-Command trufflehog -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source)
 }
 
-if (-not $trufflehog) {
+if (-not $trufflehogPath) {
   Write-Error "trufflehog is not installed or not on PATH. Install it first, then rerun this script."
 }
 
@@ -109,5 +109,5 @@ if (Test-Path $excludePaths) {
   $arguments += "--exclude-paths=$excludePaths"
 }
 
-& $trufflehog.FullName @arguments
+& $trufflehogPath @arguments
 exit $LASTEXITCODE
