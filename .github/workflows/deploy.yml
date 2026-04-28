@@ -21,6 +21,22 @@ env:
   STAGING_WEB_BASE_URL: https://web.staging.amdox.example
 
 jobs:
+  no_deploy:
+    if: >-
+      ${{
+        github.event.workflow_run.conclusion != 'success' ||
+        github.event.workflow_run.event != 'push' ||
+        github.event.workflow_run.head_branch != 'main' ||
+        contains(github.event.workflow_run.head_commit.message, '[skip ci]')
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "Skipping deploy workflow for this upstream CI result."
+          echo "conclusion=${{ github.event.workflow_run.conclusion }}"
+          echo "event=${{ github.event.workflow_run.event }}"
+          echo "branch=${{ github.event.workflow_run.head_branch }}"
+
   publish_artifacts:
     if: >-
       ${{
@@ -78,6 +94,7 @@ jobs:
 
   promote_staging:
     needs: publish_artifacts
+    if: ${{ needs.publish_artifacts.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -120,6 +137,7 @@ jobs:
     needs:
       - publish_artifacts
       - promote_staging
+    if: ${{ needs.publish_artifacts.result == 'success' && needs.promote_staging.result == 'success' }}
     runs-on: ubuntu-latest
     env:
       PHASE15_SMOKE_BASE_URL: ${{ env.STAGING_API_BASE_URL }}
@@ -147,6 +165,7 @@ jobs:
     needs:
       - publish_artifacts
       - staging_smoke
+    if: ${{ needs.publish_artifacts.result == 'success' && needs.staging_smoke.result == 'success' }}
     runs-on: ubuntu-latest
     environment: production
     steps:
